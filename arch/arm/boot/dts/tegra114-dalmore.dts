@@ -1135,6 +1135,8 @@
 
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+
+		backlight-boot-off;
 	};
 
 	clocks {
