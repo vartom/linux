@@ -140,6 +140,17 @@ source "kernel/Kconfig.freezer"
 
 menu "Platform selection"
 
+config ARCH_TEGRA
+	bool "NVIDIA Tegra"
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_CLK
+	help
+	  This enables support for NVIDIA Tegra SoC family
+
 config ARCH_THUNDER
 	bool "Cavium Inc. Thunder SoC Family"
 	help
