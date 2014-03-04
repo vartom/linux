@@ -21,6 +21,7 @@
  * that range.
  */
 /*/memreserve/ 0x10000000 0x0004000;*/	/* DSP RAM */
+/memreserve/ 0x01698000 0x00168000;
 
 / {
 	model = "nintendo,wii";
