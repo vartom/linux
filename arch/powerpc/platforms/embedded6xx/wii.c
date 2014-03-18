@@ -31,6 +31,7 @@
 #include "flipper-pic.h"
 #include "hlwd-pic.h"
 #include "usbgecko_udbg.h"
+#include "gcnvi_udbg.h"
 
 /* control block */
 #define HW_CTRL_COMPATIBLE	"nintendo,hollywood-control"
@@ -149,6 +150,18 @@ out:
 	return hw_regs;
 }
 
+void wii_enable_slot_led(void)
+{
+	if (hw_gpio)
+		setbits32(hw_gpio + HW_GPIO_OUT(0), HW_GPIO_SLOT_LED);
+}
+
+void wii_disable_slot_led(void)
+{
+	if (hw_gpio)
+		clrbits32(hw_gpio + HW_GPIO_OUT(0), HW_GPIO_SLOT_LED);
+}
+
 static void __init wii_setup_arch(void)
 {
 	hw_ctrl = wii_ioremap_hw_regs("hw_ctrl", HW_CTRL_COMPATIBLE);
@@ -156,7 +169,7 @@ static void __init wii_setup_arch(void)
 	if (hw_gpio) {
 		/* turn off the front blue led and IR light */
 		clrbits32(hw_gpio + HW_GPIO_OUT(0),
-			  HW_GPIO_SLOT_LED | HW_GPIO_SENSOR_BAR);
+			  /*HW_GPIO_SLOT_LED | */HW_GPIO_SENSOR_BAR);
 	}
 }
 
@@ -195,6 +208,7 @@ static void wii_halt(void)
 static void __init wii_init_early(void)
 {
 	ug_udbg_init();
+	gcnvi_udbg_init();
 }
 
 static void __init wii_pic_probe(void)

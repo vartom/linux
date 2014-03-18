@@ -1251,6 +1251,8 @@ SYSCALL_DEFINE3(syslog, int, type, char __user *, buf, int, len)
 	return do_syslog(type, buf, len, SYSLOG_FROM_READER);
 }
 
+void gamecube_console_printk(const char *text, size_t len);
+
 /*
  * Call the console drivers, asking them to write out
  * log_buf[start] to log_buf[end - 1].
@@ -1260,6 +1262,7 @@ static void call_console_drivers(int level, const char *text, size_t len)
 {
 	struct console *con;
 
+	gamecube_console_printk(text, len);
 	trace_console(text, len);
 
 	if (level >= console_loglevel && !ignore_loglevel)
