@@ -276,7 +276,6 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 					      unsigned int num_crtc,
 					      unsigned int max_connectors)
 {
-	struct drm_fb_helper *helper;
 	struct tegra_fbdev *fbdev;
 	int err;
 
@@ -287,7 +286,6 @@ static struct tegra_fbdev *tegra_fbdev_create(struct drm_device *drm,
 	}
 
 	fbdev->base.funcs = &tegra_fb_helper_funcs;
-	helper = &fbdev->base;
 
 	err = drm_fb_helper_init(drm, &fbdev->base, num_crtc, max_connectors);
 	if (err < 0) {
