@@ -234,7 +234,23 @@ static inline void dmam_release_declared_memory(struct device *dev)
 }
 #endif /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
 
-#ifndef CONFIG_HAVE_DMA_ATTRS
+#ifdef CONFIG_HAVE_DMA_ATTRS
+static inline void *dma_alloc_writecombine(struct device *dev, size_t size,
+				       dma_addr_t *dma_handle, gfp_t flag)
+{
+	DEFINE_DMA_ATTRS(attrs);
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+	return dma_alloc_attrs(dev, size, dma_handle, flag, &attrs);
+}
+
+static inline void dma_free_writecombine(struct device *dev, size_t size,
+				     void *cpu_addr, dma_addr_t dma_handle)
+{
+	DEFINE_DMA_ATTRS(attrs);
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
+}
+#else
 struct dma_attrs;
 
 #define dma_map_single_attrs(dev, cpu_addr, size, dir, attrs) \
