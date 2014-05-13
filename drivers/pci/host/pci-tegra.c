@@ -625,19 +625,6 @@ static void tegra_pcie_port_free(struct tegra_pcie_port *port)
 	devm_kfree(pcie->dev, port);
 }
 
-static void tegra_pcie_fixup_bridge(struct pci_dev *dev)
-{
-	u16 reg;
-
-	if ((dev->class >> 16) == PCI_BASE_CLASS_BRIDGE) {
-		pci_read_config_word(dev, PCI_COMMAND, &reg);
-		reg |= (PCI_COMMAND_IO | PCI_COMMAND_MEMORY |
-			PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
-		pci_write_config_word(dev, PCI_COMMAND, reg);
-	}
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, tegra_pcie_fixup_bridge);
-
 /* Tegra PCIE root complex wrongly reports device class */
 static void tegra_pcie_fixup_class(struct pci_dev *dev)
 {
@@ -645,8 +632,6 @@ static void tegra_pcie_fixup_class(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf0, tegra_pcie_fixup_class);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0bf1, tegra_pcie_fixup_class);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e1c, tegra_pcie_fixup_class);
-DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_NVIDIA, 0x0e1d, tegra_pcie_fixup_class);
 
 /* Tegra PCIE requires relaxed ordering */
 static void tegra_pcie_relax_enable(struct pci_dev *dev)
