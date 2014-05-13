@@ -980,7 +980,7 @@ extern void drm_mode_config_cleanup(struct drm_device *dev);
 extern int drm_mode_connector_set_path_property(struct drm_connector *connector,
 						char *path);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-						struct edid *edid);
+						   const struct edid *edid);
 
 static inline bool drm_property_type_is(struct drm_property *property,
 		uint32_t type)
