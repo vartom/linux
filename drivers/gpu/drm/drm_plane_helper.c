@@ -318,7 +318,7 @@ EXPORT_SYMBOL(drm_primary_helper_funcs);
  */
 struct drm_plane *drm_primary_helper_create_plane(struct drm_device *dev,
 						  const uint32_t *formats,
-						  int num_formats)
+						  unsigned int num_formats)
 {
 	struct drm_plane *primary;
 	int ret;

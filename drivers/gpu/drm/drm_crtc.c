@@ -1148,7 +1148,7 @@ EXPORT_SYMBOL(drm_encoder_cleanup);
 int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 			     unsigned long possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
-			     const uint32_t *formats, uint32_t format_count,
+			     const uint32_t *formats, unsigned int format_count,
 			     enum drm_plane_type type)
 {
 	int ret;
@@ -1212,7 +1212,7 @@ EXPORT_SYMBOL(drm_universal_plane_init);
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   unsigned long possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
-		   const uint32_t *formats, uint32_t format_count,
+		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary)
 {
 	enum drm_plane_type type;
