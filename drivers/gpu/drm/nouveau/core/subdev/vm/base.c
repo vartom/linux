@@ -152,13 +152,17 @@ nouveau_vm_map_sg(struct nouveau_vma *vma, u64 delta, u64 length,
 		end = (pte + num);
 		if (unlikely(end >= max))
 			end = max;
-		len = end - pte;
+
+		if (!big)
+			len = end - pte;
+		else
+			len = 1;
 
 		vmm->map_sg(vma, pgt, mem, pte, len, list);
 
 		num  -= len;
 		pte  += len;
-		list += len;
+		list += len << bits;
 		if (unlikely(end >= max)) {
 			pde++;
 			pte = 0;
