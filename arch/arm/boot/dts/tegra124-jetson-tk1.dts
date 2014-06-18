@@ -1754,6 +1754,18 @@
 		vbus-supply = <&vdd_usb3_vbus>;
 	};
 
+	/* Serial ATA */
+	sata@0,70020000 {
+		status = "okay";
+
+		hvdd-supply = <&vdd_3v3_lp0>;
+		vddio-supply = <&vdd_1v05_run>;
+		avdd-supply = <&vdd_1v05_run>;
+
+		target-5v-supply = <&vdd_5v0_sata>;
+		target-12v-supply = <&vdd_12v0_sata>;
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
