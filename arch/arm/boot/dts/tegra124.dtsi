@@ -624,6 +624,7 @@
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
 		status = "disabled";
+		iommus = <&mc TEGRA_SWGROUP_SDMMC1A>;
 	};
 
 	sdhci@0,700b0200 {
@@ -634,6 +635,7 @@
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
 		status = "disabled";
+		iommus = <&mc TEGRA_SWGROUP_SDMMC2A>;
 	};
 
 	sdhci@0,700b0400 {
@@ -644,6 +646,7 @@
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
 		status = "disabled";
+		iommus = <&mc TEGRA_SWGROUP_SDMMC3A>;
 	};
 
 	sdhci@0,700b0600 {
@@ -654,6 +657,7 @@
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
 		status = "disabled";
+		iommus = <&mc TEGRA_SWGROUP_SDMMC4A>;
 	};
 
 	ahub@0,70300000 {
