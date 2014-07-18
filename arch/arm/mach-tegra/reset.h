@@ -57,7 +57,5 @@ void tegra_secondary_startup(void);
 		(__tegra_cpu_reset_handler_end - \
 		 __tegra_cpu_reset_handler_start)
 
-void __init tegra_cpu_reset_handler_init(void);
-
 #endif
 #endif
