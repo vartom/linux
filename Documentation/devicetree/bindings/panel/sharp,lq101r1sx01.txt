@@ -1,0 +1,7 @@
+Sharp Microelectronics 10.1" WQXGA TFT LCD panel
+
+Required properties:
+- compatible: should be "sharp,lq101r1sx01"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
