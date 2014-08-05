@@ -7,7 +7,7 @@
 #
 
 KBUILD_DEFCONFIG := spct6600_defconfig
-CROSS_COMPILE := score-linux-
+CROSS_COMPILE ?= score-linux-
 
 #
 # CPU-dependent compiler/assembler options for optimization.
