@@ -72,15 +72,102 @@ static inline struct tegra_dsi *to_dsi(struct tegra_output *output)
 	return container_of(output, struct tegra_dsi, output);
 }
 
+#define TEGRA_DSI_DEBUG_REGS
+#undef  TEGRA_DSI_DEBUG_REGS
+#ifdef TEGRA_DSI_DEBUG_REGS
+static const char *const reg_names[] = {
+#define REG(name) [name] = #name
+	REG(DSI_INCR_SYNCPT),
+	REG(DSI_INCR_SYNCPT_CONTROL),
+	REG(DSI_INCR_SYNCPT_ERROR),
+	REG(DSI_CTXSW),
+	REG(DSI_RD_DATA),
+	REG(DSI_WR_DATA),
+	REG(DSI_POWER_CONTROL),
+	REG(DSI_INT_ENABLE),
+	REG(DSI_INT_STATUS),
+	REG(DSI_INT_MASK),
+	REG(DSI_HOST_CONTROL),
+	REG(DSI_CONTROL),
+	REG(DSI_SOL_DELAY),
+	REG(DSI_MAX_THRESHOLD),
+	REG(DSI_TRIGGER),
+	REG(DSI_TX_CRC),
+	REG(DSI_STATUS),
+	REG(DSI_INIT_SEQ_CONTROL),
+	REG(DSI_INIT_SEQ_DATA_0),
+	REG(DSI_INIT_SEQ_DATA_1),
+	REG(DSI_INIT_SEQ_DATA_2),
+	REG(DSI_INIT_SEQ_DATA_3),
+	REG(DSI_INIT_SEQ_DATA_4),
+	REG(DSI_INIT_SEQ_DATA_5),
+	REG(DSI_INIT_SEQ_DATA_6),
+	REG(DSI_INIT_SEQ_DATA_7),
+	REG(DSI_PKT_SEQ_0_LO),
+	REG(DSI_PKT_SEQ_0_HI),
+	REG(DSI_PKT_SEQ_1_LO),
+	REG(DSI_PKT_SEQ_1_HI),
+	REG(DSI_PKT_SEQ_2_LO),
+	REG(DSI_PKT_SEQ_2_HI),
+	REG(DSI_PKT_SEQ_3_LO),
+	REG(DSI_PKT_SEQ_3_HI),
+	REG(DSI_PKT_SEQ_4_LO),
+	REG(DSI_PKT_SEQ_4_HI),
+	REG(DSI_PKT_SEQ_5_LO),
+	REG(DSI_PKT_SEQ_5_HI),
+	REG(DSI_DCS_CMDS),
+	REG(DSI_PKT_LEN_0_1),
+	REG(DSI_PKT_LEN_2_3),
+	REG(DSI_PKT_LEN_4_5),
+	REG(DSI_PKT_LEN_6_7),
+	REG(DSI_PHY_TIMING_0),
+	REG(DSI_PHY_TIMING_1),
+	REG(DSI_PHY_TIMING_2),
+	REG(DSI_BTA_TIMING),
+	REG(DSI_TIMEOUT_0),
+	REG(DSI_TIMEOUT_1),
+	REG(DSI_TO_TALLY),
+	REG(DSI_PAD_CONTROL_0),
+	REG(DSI_PAD_CONTROL_CD),
+	REG(DSI_PAD_CD_STATUS),
+	REG(DSI_VIDEO_MODE_CONTROL),
+	REG(DSI_PAD_CONTROL_1),
+	REG(DSI_PAD_CONTROL_2),
+	REG(DSI_PAD_CONTROL_3),
+	REG(DSI_PAD_CONTROL_4),
+	REG(DSI_GANGED_MODE_CONTROL),
+	REG(DSI_GANGED_MODE_START),
+	REG(DSI_GANGED_MODE_SIZE),
+	REG(DSI_RAW_DATA_BYTE_COUNT),
+	REG(DSI_ULTRA_LOW_POWER_CONTROL),
+	REG(DSI_INIT_SEQ_DATA_8),
+	REG(DSI_INIT_SEQ_DATA_9),
+	REG(DSI_INIT_SEQ_DATA_10),
+	REG(DSI_INIT_SEQ_DATA_11),
+	REG(DSI_INIT_SEQ_DATA_12),
+	REG(DSI_INIT_SEQ_DATA_13),
+	REG(DSI_INIT_SEQ_DATA_14),
+	REG(DSI_INIT_SEQ_DATA_15),
+#undef REG
+};
+#endif /* TEGRA_DSI_DEBUG_REGS */
+
 static inline unsigned long tegra_dsi_readl(struct tegra_dsi *dsi,
 					    unsigned long reg)
 {
-	return readl(dsi->regs + (reg << 2));
+	u32 value = readl(dsi->regs + (reg << 2));
+#ifdef TEGRA_DSI_DEBUG_REGS
+	dev_dbg(dsi->dev, "%s > %08x\n", reg_names[reg], value);
+#endif
+	return value;
 }
 
-static inline void tegra_dsi_writel(struct tegra_dsi *dsi, unsigned long value,
+static inline void tegra_dsi_writel(struct tegra_dsi *dsi, u32 value,
 				    unsigned long reg)
 {
+#ifdef TEGRA_DSI_DEBUG_REGS
+	dev_dbg(dsi->dev, "%s < %08x\n", reg_names[reg], value);
+#endif
 	writel(value, dsi->regs + (reg << 2));
 }
 
