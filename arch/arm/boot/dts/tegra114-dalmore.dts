@@ -38,7 +38,9 @@
 			status = "okay";
 
 			avdd-dsi-csi-supply = <&avdd_1v2_reg>;
+			nvidia,ganged-mode = <&dsib>;
 
+			/*
 			panel@0 {
 				compatible = "panasonic,vvx10f004b00",
 					     "simple-panel";
@@ -46,6 +48,31 @@
 
 				power-supply = <&avdd_lcd_reg>;
 				backlight = <&backlight>;
+			};
+			*/
+			panel@0 {
+				compatible = "sharp,lq101r1sx01";
+				reg = <0>;
+
+				interface = <0>;
+				power-supply = <&avdd_lcd_reg>;
+				backlight = <&backlight>;
+			};
+		};
+
+		dsib: dsi@54400000 {
+			status = "okay";
+			nvidia,ganged-mode;
+
+			panel@0 {
+				compatible = "sharp,lq101r1sx01";
+				reg = <0>;
+
+				status = "disabled";
+/*
+				power-supply = <&avdd_lcd_reg>;
+				backlight = <&backlight>;
+*/
 			};
 		};
 	};
@@ -1136,7 +1163,7 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 
-		backlight-boot-off;
+		/*backlight-boot-off;*/
 	};
 
 	clocks {
