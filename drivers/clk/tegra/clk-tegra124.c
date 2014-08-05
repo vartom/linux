@@ -1454,3 +1454,19 @@ static void __init tegra124_clock_init(struct device_node *np)
 	tegra_cpu_car_ops = &tegra124_cpu_car_ops;
 }
 CLK_OF_DECLARE(tegra124, "nvidia,tegra124-car", tegra124_clock_init);
+
+static void __init tegra132_clock_init(struct device_node *np)
+{
+	struct clk *clk;
+
+	tegra124_clock_init(np);
+
+	/*
+	 * HACK: On Tegra132 the CPU clock is derived from pll_p, so make sure
+	 * it never gets disabled.
+	 */
+	clk = clk_get(NULL, "pll_p");
+	pr_info("Tegra132 detected, forcing pll_p to always on\n");
+	clk_prepare_enable(clk);
+}
+CLK_OF_DECLARE(tegra132, "nvidia,tegra132-car", tegra132_clock_init);
