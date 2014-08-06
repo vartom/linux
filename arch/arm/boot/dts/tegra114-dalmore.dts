@@ -54,9 +54,10 @@
 				compatible = "sharp,lq101r1sx01";
 				reg = <0>;
 
-				interface = <0>;
 				power-supply = <&avdd_lcd_reg>;
 				backlight = <&backlight>;
+
+				secondary = <&secondary>;
 			};
 		};
 
@@ -64,15 +65,8 @@
 			status = "okay";
 			nvidia,ganged-mode;
 
-			panel@0 {
-				compatible = "sharp,lq101r1sx01";
+			secondary: panel@0 {
 				reg = <0>;
-
-				status = "disabled";
-/*
-				power-supply = <&avdd_lcd_reg>;
-				backlight = <&backlight>;
-*/
 			};
 		};
 	};
@@ -1163,7 +1157,7 @@
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
 
-		/*backlight-boot-off;*/
+		backlight-boot-off;
 	};
 
 	clocks {
