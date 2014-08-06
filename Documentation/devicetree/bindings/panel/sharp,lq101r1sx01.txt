@@ -1,7 +1,18 @@
 Sharp Microelectronics 10.1" WQXGA TFT LCD panel
 
+This panel requires dual-channel DSI to operate. It supports two modes:
+- left-right: the two channels drive the left or right halves of the screen
+- odd-even: the two channels drive the odd or even lines of the screen
+
+Each of the DSI channels drives a separate DSI peripheral. The left (or odd)
+peripheral is considered the primary peripheral and controls the device. The
+phandle to the right (or even) peripheral is specified in a property called
+"secondary".
+
 Required properties:
 - compatible: should be "sharp,lq101r1sx01"
+- secondary: phandle of the DSI peripheral that is the second link
+- power-supply: phandle of the regulator that provides the supply voltage
 
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
