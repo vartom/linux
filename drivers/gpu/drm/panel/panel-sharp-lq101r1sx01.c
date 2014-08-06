@@ -23,8 +23,6 @@
 
 struct sharp_panel {
 	struct drm_panel base;
-	struct mipi_dsi_device *primary;
-	struct mipi_dsi_device *secondary;
 	struct mipi_dsi_device *dsi;
 
 	struct backlight_device *backlight;
@@ -189,7 +187,7 @@ static int sharp_panel_prepare(struct drm_panel *panel)
 	if (err < 0)
 		dev_err(panel->dev, "failed to set pixel format: %d\n", err);
 
-	err = sharp_setup_symmetrical_split(sharp->primary, sharp->secondary,
+	err = sharp_setup_symmetrical_split(sharp->dsi, sharp->dsi->slave,
 					    sharp->mode);
 	if (err < 0)
 		dev_err(panel->dev, "failed to set up symmetrical split: %d\n",
@@ -270,6 +268,35 @@ static const struct of_device_id sharp_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, sharp_of_match);
 
+static int sharp_panel_enslave(struct mipi_dsi_device *master,
+			       struct mipi_dsi_device *slave)
+{
+	int err;
+
+	err = mipi_dsi_attach(master);
+	if (err < 0)
+		return err;
+
+	return err;
+}
+
+static int sharp_panel_liberate(struct mipi_dsi_device *master,
+				struct mipi_dsi_device *slave)
+{
+	int err;
+
+	err = mipi_dsi_detach(master);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static const struct mipi_dsi_master_ops sharp_panel_master_ops = {
+	.enslave = sharp_panel_enslave,
+	.liberate = sharp_panel_liberate,
+};
+
 static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct sharp_panel *sharp;
@@ -280,16 +307,38 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 	if (!sharp)
 		return -ENOMEM;
 
-	sharp->supply = devm_regulator_get(&dsi->dev, "power");
-	if (IS_ERR(sharp->supply))
-		return PTR_ERR(sharp->supply);
+	mipi_dsi_set_drvdata(dsi, sharp);
+	sharp->mode = &default_mode;
+	sharp->dsi = dsi;
 
-	dsi->lanes = 8;
+	dsi->lanes = 4;
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = 0;
 
-	sharp->mode = &default_mode;
-	sharp->dsi = dsi;
+	dsi->master = mipi_dsi_get_master(dsi);
+	if (IS_ERR(dsi->master))
+		return PTR_ERR(sharp->dsi->master);
+
+	if (dsi->master) {
+		err = mipi_dsi_attach(dsi);
+		if (err < 0)
+			return err;
+
+		err = mipi_dsi_enslave(dsi->master, dsi);
+		if (err < 0) {
+			dev_err(&dsi->dev, "mipi_dsi_enslave() failed: %d\n",
+				err);
+			return err;
+		}
+
+		return 0;
+	}
+
+	dsi->ops = &sharp_panel_master_ops;
+
+	sharp->supply = devm_regulator_get(&dsi->dev, "power");
+	if (IS_ERR(sharp->supply))
+		return PTR_ERR(sharp->supply);
 
 	np = of_parse_phandle(dsi->dev.of_node, "backlight", 0);
 	if (np) {
@@ -300,36 +349,17 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 			return -EPROBE_DEFER;
 	}
 
-	sharp->primary = dsi;
-
-	np = of_parse_phandle(dsi->dev.of_node, "secondary", 0);
-	if (np) {
-		sharp->secondary = of_find_mipi_dsi_by_node(np);
-		of_node_put(np);
-
-		if (!sharp->secondary)
-			return -EPROBE_DEFER;
-	}
-
 	drm_panel_init(&sharp->base);
 	sharp->base.dev = &dsi->dev;
 	sharp->base.funcs = &sharp_panel_funcs;
 
 	err = drm_panel_add(&sharp->base);
 	if (err < 0)
-		goto free_backlight;
-
-	mipi_dsi_set_drvdata(dsi, sharp);
-
-	err = mipi_dsi_attach(dsi);
-	if (err < 0)
-		goto remove_panel;
+		goto put_backlight;
 
 	return 0;
 
-remove_panel:
-	drm_panel_remove(&sharp->base);
-free_backlight:
+put_backlight:
 	if (sharp->backlight)
 		put_device(&sharp->backlight->dev);
 
@@ -353,7 +383,7 @@ static int sharp_panel_remove(struct mipi_dsi_device *dsi)
 	if (sharp->backlight)
 		put_device(&sharp->backlight->dev);
 
-	put_device(&sharp->secondary->dev);
+	put_device(&dsi->slave->dev);
 
 	return 0;
 }
