@@ -963,7 +963,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	pmc->dev = &pdev->dev;
 	tegra_pmc_init(pmc);
 
-	if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
+	if (0 && IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS)) {
 		err = tegra_powergate_init(pmc);
 		if (err < 0)
 			return err;
