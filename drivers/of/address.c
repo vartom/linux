@@ -171,6 +171,15 @@ static int of_bus_pci_translate(__be32 *addr, u64 offset, int na)
 #endif /* CONFIG_OF_ADDRESS_PCI */
 
 #ifdef CONFIG_PCI
+/**
+ * of_get_pci_address() - obtain the address, size and flags for a PCI BAR
+ * @dev: device tree node
+ * @bar_no: number of BAR
+ * @size: return location for the BAR size
+ * @flags: return location for the BAR flags
+ *
+ * Return: A pointer to the address of the BAR or NULL on failure.
+ */
 const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 			unsigned int *flags)
 {
@@ -215,6 +224,14 @@ const __be32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 }
 EXPORT_SYMBOL(of_get_pci_address);
 
+/**
+ * of_pci_address_to_resource() - convert PCI BAR to resource
+ * @dev: device tree node
+ * @bar: PCI BAR number
+ * @r: return location for the BAR address, size and flags
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int of_pci_address_to_resource(struct device_node *dev, int bar,
 			       struct resource *r)
 {
@@ -229,6 +246,13 @@ int of_pci_address_to_resource(struct device_node *dev, int bar,
 }
 EXPORT_SYMBOL_GPL(of_pci_address_to_resource);
 
+/**
+ * of_pci_range_parser_init() - initialize PCI range parser
+ * @parser: PCI range parser
+ * @node: device tree node containing the PCI range
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 				struct device_node *node)
 {
@@ -249,6 +273,13 @@ int of_pci_range_parser_init(struct of_pci_range_parser *parser,
 }
 EXPORT_SYMBOL_GPL(of_pci_range_parser_init);
 
+/**
+ * of_pci_range_parser_one() - parse one PCI range entry
+ * @parser: PCI range parser
+ * @range: return location for the parsed PCI range
+ *
+ * Return: A pointer to the parsed PCI range or NULL on failure.
+ */
 struct of_pci_range *of_pci_range_parser_one(struct of_pci_range_parser *parser,
 						struct of_pci_range *range)
 {
@@ -598,18 +629,43 @@ static u64 __of_translate_address(struct device_node *dev,
 	return result;
 }
 
+/**
+ * of_translate_address() - translate an address from device tree to a
+ *    physical address
+ * @dev: device tree node for which to translate an address
+ * @in_addr: address to translate
+ *
+ * Return: The translated physical address.
+ */
 u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
 {
 	return __of_translate_address(dev, in_addr, "ranges");
 }
 EXPORT_SYMBOL(of_translate_address);
 
+/**
+ * of_translate_dma_address() - translate a DMA address from device tree to a
+ *    physical address
+ * @dev: device tree node for which to translate an address
+ * @in_addr: DMA address to translate
+ *
+ * Return: The translated physical DMA address.
+ */
 u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 {
 	return __of_translate_address(dev, in_addr, "dma-ranges");
 }
 EXPORT_SYMBOL(of_translate_dma_address);
 
+/**
+ * of_get_address() - obtain the address, size and flags for a memory range
+ * @dev: device tree node
+ * @index: entry in "reg" or "assigned-addresses" property to process
+ * @size: return location for the size of the memory range
+ * @flags: return location for the flags of the memory range
+ *
+ * Return: A pointer to the address of the memory range or NULL on failure.
+ */
 const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 		    unsigned int *flags)
 {
@@ -793,12 +849,18 @@ static int __of_address_to_resource(struct device_node *dev,
 }
 
 /**
- * of_address_to_resource - Translate device tree address and return as resource
+ * of_address_to_resource() - Translate device tree address and return as
+ *   resource
+ * @dev: device tree node for which to translate an address
+ * @index: index of the reg property entry to translate
+ * @r: return location for the translated address
  *
  * Note that if your address is a PIO address, the conversion will fail if
  * the physical address can't be internally converted to an IO token with
  * pci_address_to_pio(), that is because it's either called to early or it
  * can't be matched to any host bridge IO space
+ *
+ * Return: 0 on success or a negative error code on failure.
  */
 int of_address_to_resource(struct device_node *dev, int index,
 			   struct resource *r)
@@ -839,11 +901,11 @@ struct device_node *of_find_matching_node_by_address(struct device_node *from,
 
 
 /**
- * of_iomap - Maps the memory mapped IO for a given device_node
- * @device:	the device whose io range will be mapped
- * @index:	index of the io range
+ * of_iomap() - Maps the memory mapped IO for a given device_node
+ * @np: the device whose IO range will be mapped
+ * @index: index of the IO range
  *
- * Returns a pointer to the mapped memory
+ * Return: A pointer to the mapped memory.
  */
 void __iomem *of_iomap(struct device_node *np, int index)
 {
@@ -857,14 +919,16 @@ void __iomem *of_iomap(struct device_node *np, int index)
 EXPORT_SYMBOL(of_iomap);
 
 /*
- * of_io_request_and_map - Requests a resource and maps the memory mapped IO
- *			   for a given device_node
- * @device:	the device whose io range will be mapped
- * @index:	index of the io range
- * @name:	name of the resource
+ * of_io_request_and_map() - Requests a resource and maps the memory mapped IO
+ *    for a given device_node
+ * @device: the device whose IO range will be mapped
+ * @index: index of the IO range
+ * @name: name of the resource
  *
- * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
- * error code on failure. Usage example:
+ * Return: A pointer to the requested and mapped memory or an ERR_PTR()
+ * encoded error code on failure.
+ *
+ * Example:
  *
  *	base = of_io_request_and_map(node, 0, "foo");
  *	if (IS_ERR(base))
@@ -893,11 +957,11 @@ void __iomem *of_io_request_and_map(struct device_node *np, int index,
 EXPORT_SYMBOL(of_io_request_and_map);
 
 /**
- * of_dma_get_range - Get DMA range info
- * @np:		device node to get DMA range info
- * @dma_addr:	pointer to store initial DMA address of DMA range
- * @paddr:	pointer to store initial CPU address of DMA range
- * @size:	pointer to store size of DMA range
+ * of_dma_get_range() - Get DMA range info
+ * @np: device node to get DMA range info
+ * @dma_addr: pointer to store initial DMA address of DMA range
+ * @paddr: pointer to store initial CPU address of DMA range
+ * @size: pointer to store size of DMA range
  *
  * Look in bottom up direction for the first "dma-ranges" property
  * and parse it.
@@ -906,8 +970,9 @@ EXPORT_SYMBOL(of_io_request_and_map);
  *	CPU addr (phys_addr_t)	: pna cells
  *	size			: nsize cells
  *
- * It returns -ENODEV if "dma-ranges" property was not found
- * for this device in DT.
+ * Return: 0 on success or a negative error code on failure. In particular,
+ * -ENODEV is returned if "dma-ranges" property was not found for this device
+ * in DT.
  */
 int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *size)
 {
@@ -980,11 +1045,11 @@ out:
 EXPORT_SYMBOL_GPL(of_dma_get_range);
 
 /**
- * of_dma_is_coherent - Check if device is coherent
- * @np:	device node
+ * of_dma_is_coherent() - Check if device is coherent
+ * @np: device node
  *
- * It returns true if "dma-coherent" property was found
- * for this device in DT.
+ * Return: True if "dma-coherent" property was found for this device in DT,
+ * false otherwise.
  */
 bool of_dma_is_coherent(struct device_node *np)
 {

@@ -12,11 +12,14 @@
 
 /**
  * of_match_device - Tell if a struct device matches an of_device_id list
- * @ids: array of of device match structures to search in
+ * @matches: array of of device match structures to search in
  * @dev: the of device structure to match against
  *
  * Used by a driver to check whether an platform_device present in the
  * system is in its list of supported devices.
+ *
+ * Return: A pointer to the matching entry in the list or NULL if no match
+ *    was found or the device has no associated device tree node.
  */
 const struct of_device_id *of_match_device(const struct of_device_id *matches,
 					   const struct device *dev)
@@ -27,6 +30,12 @@ const struct of_device_id *of_match_device(const struct of_device_id *matches,
 }
 EXPORT_SYMBOL(of_match_device);
 
+/**
+ * of_dev_get() - get a reference to a platform device
+ * @dev: platform device to get a reference to
+ *
+ * Return: A pointer to @dev with the reference count incremented.
+ */
 struct platform_device *of_dev_get(struct platform_device *dev)
 {
 	struct device *tmp;
@@ -41,6 +50,10 @@ struct platform_device *of_dev_get(struct platform_device *dev)
 }
 EXPORT_SYMBOL(of_dev_get);
 
+/**
+ * of_dev_put() - drop a reference on a platform device
+ * @dev: platform device to drop a reference on
+ */
 void of_dev_put(struct platform_device *dev)
 {
 	if (dev)
@@ -48,6 +61,12 @@ void of_dev_put(struct platform_device *dev)
 }
 EXPORT_SYMBOL(of_dev_put);
 
+/**
+ * of_device_add() - register a platform device
+ * @ofdev: platform device to register
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int of_device_add(struct platform_device *ofdev)
 {
 	BUG_ON(ofdev->dev.of_node == NULL);
@@ -66,6 +85,12 @@ int of_device_add(struct platform_device *ofdev)
 	return device_add(&ofdev->dev);
 }
 
+/**
+ * of_device_register() - initialize and register a platform device
+ * @pdev: platform device to register
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int of_device_register(struct platform_device *pdev)
 {
 	device_initialize(&pdev->dev);
@@ -73,6 +98,10 @@ int of_device_register(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(of_device_register);
 
+/**
+ * of_device_unregister() - unregister a platform device
+ * @ofdev: platform device to unregister
+ */
 void of_device_unregister(struct platform_device *ofdev)
 {
 	device_unregister(&ofdev->dev);
@@ -130,7 +159,9 @@ ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 }
 
 /**
- * of_device_uevent - Display OF related uevent information
+ * of_device_uevent() - Display OF related uevent information
+ * @dev: device for which to display uevent information
+ * @env: uevent environment
  */
 void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
