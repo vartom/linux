@@ -145,7 +145,7 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	union ioc4_int_out int_out;
 	union ioc4_gpcr gpcr;
 	unsigned int state, last_state = 1;
-	uint64_t start, end, period;
+	uint64_t start = 0, end, period;
 	unsigned int count = 0;
 
 	/* Enable output */
