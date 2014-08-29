@@ -6,6 +6,8 @@
  *  This file is released under the GPLv2.
  */
 
+#define DEBUG
+
 #include <linux/syscore_ops.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
@@ -50,12 +52,17 @@ int syscore_suspend(void)
 	struct syscore_ops *ops;
 	int ret = 0;
 
+	printk("> %s()\n", __func__);
+
 	trace_suspend_resume(TPS("syscore_suspend"), 0, true);
 	pr_debug("Checking wakeup interrupts\n");
 
 	/* Return error code if there are any wakeup interrupts pending. */
-	if (pm_wakeup_pending())
+	if (pm_wakeup_pending()) {
+		printk("  pm_wakeup_pending() failed: %d\n", -EBUSY);
+		printk("< %s() = %d\n", __func__, -EBUSY);
 		return -EBUSY;
+	}
 
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core suspend.\n");
@@ -72,6 +79,7 @@ int syscore_suspend(void)
 		}
 
 	trace_suspend_resume(TPS("syscore_suspend"), 0, false);
+	printk("< %s()\n", __func__);
 	return 0;
 
  err_out:
@@ -81,6 +89,7 @@ int syscore_suspend(void)
 		if (ops->resume)
 			ops->resume();
 
+	printk("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(syscore_suspend);
@@ -93,6 +102,8 @@ EXPORT_SYMBOL_GPL(syscore_suspend);
 void syscore_resume(void)
 {
 	struct syscore_ops *ops;
+
+	printk("> %s()\n", __func__);
 
 	trace_suspend_resume(TPS("syscore_resume"), 0, true);
 	WARN_ONCE(!irqs_disabled(),
@@ -107,6 +118,7 @@ void syscore_resume(void)
 				"Interrupts enabled after %pF\n", ops->resume);
 		}
 	trace_suspend_resume(TPS("syscore_resume"), 0, false);
+	printk("< %s()\n", __func__);
 }
 EXPORT_SYMBOL_GPL(syscore_resume);
 #endif /* CONFIG_PM_SLEEP */
