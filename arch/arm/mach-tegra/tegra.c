@@ -36,6 +36,7 @@
 #include <linux/usb/tegra_usb_phy.h>
 
 #include <soc/tegra/fuse.h>
+#include <soc/tegra/irq.h>
 #include <soc/tegra/pmc.h>
 
 #include <asm/hardware/cache-l2x0.h>
@@ -50,7 +51,6 @@
 #include "cpuidle.h"
 #include "flowctrl.h"
 #include "iomap.h"
-#include "irq.h"
 #include "pm.h"
 #include "reset.h"
 #include "sleep.h"
@@ -79,9 +79,8 @@ static void __init tegra_init_early(void)
 
 static void __init tegra_dt_init_irq(void)
 {
-	tegra_init_irq();
+	tegra_legacy_irq_init();
 	irqchip_init();
-	tegra_legacy_irq_syscore_init();
 }
 
 static void __init tegra_dt_init(void)

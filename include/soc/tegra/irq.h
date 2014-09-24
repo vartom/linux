@@ -17,12 +17,7 @@
 #ifndef __TEGRA_IRQ_H
 #define __TEGRA_IRQ_H
 
+int tegra_legacy_irq_init(void);
 bool tegra_pending_sgi(void);
-
-#ifdef CONFIG_PM_SLEEP
-int tegra_legacy_irq_syscore_init(void);
-#else
-static inline int tegra_legacy_irq_syscore_init(void) { return 0; }
-#endif
 
 #endif

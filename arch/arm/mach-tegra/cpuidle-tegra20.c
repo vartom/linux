@@ -31,9 +31,10 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
+#include <soc/tegra/irq.h>
+
 #include "flowctrl.h"
 #include "iomap.h"
-#include "irq.h"
 #include "pm.h"
 #include "sleep.h"
 

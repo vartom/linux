@@ -29,6 +29,8 @@
 
 #include <soc/tegra/fuse.h>
 
+#include "irqchip.h"
+
 #define ICTLR_CPU_IEP_VFIQ	0x08
 #define ICTLR_CPU_IEP_FIR	0x14
 #define ICTLR_CPU_IEP_FIR_SET	0x18
@@ -152,7 +154,21 @@ static int tegra_set_wake(struct irq_data *d, unsigned int enable)
 
 	return 0;
 }
+#else
+#define tegra_set_wake NULL
+#endif
 
+static const struct irq_chip tegra_legacy_irq = {
+	.irq_ack = tegra_ack,
+	.irq_eoi = tegra_eoi,
+	.irq_mask = tegra_mask,
+	.irq_unmask = tegra_unmask,
+	.irq_retrigger = tegra_retrigger,
+	.irq_set_wake = tegra_set_wake,
+	.flags = IRQCHIP_MASK_ON_SUSPEND,
+};
+
+#ifdef CONFIG_PM_SLEEP
 static int tegra_legacy_irq_suspend(void)
 {
 	unsigned long flags;
@@ -203,13 +219,6 @@ static struct syscore_ops tegra_legacy_irq_syscore_ops = {
 	.suspend = tegra_legacy_irq_suspend,
 	.resume = tegra_legacy_irq_resume,
 };
-
-int tegra_legacy_irq_syscore_init(void)
-{
-	register_syscore_ops(&tegra_legacy_irq_syscore_ops);
-
-	return 0;
-}
 
 static int tegra_gic_notifier(struct notifier_block *self,
 			      unsigned long cmd, void *v)
@@ -281,43 +290,11 @@ static const struct of_device_id gic_matches[] = {
 	{ }
 };
 
-void __init tegra_init_irq(void)
+static void __init tegra_irq_init(unsigned int max_ictlrs)
 {
-	unsigned int max_ictlrs = ARRAY_SIZE(ictlr_regs), i;
-	const struct of_device_id *match;
 	struct device_node *np;
 	struct resource res;
-
-	np = of_find_matching_node_and_match(NULL, ictlr_matches, &match);
-	if (np) {
-		const struct tegra_ictlr_soc *soc = match->data;
-
-		for (i = 0; i < soc->num_ictlrs; i++) {
-			if (of_address_to_resource(np, i, &res) < 0)
-				break;
-
-			ictlr_regs[i] = res;
-		}
-
-		WARN(i != soc->num_ictlrs,
-		     "Found %u interrupt controllers in DT; expected %u.\n",
-		     i, soc->num_ictlrs);
-
-		max_ictlrs = soc->num_ictlrs;
-		of_node_put(np);
-	} else {
-		/*
-		 * If no matching device node was found, fall back to using
-		 * the chip ID.
-		 */
-
-		/* Tegra30 and later have five interrupt controllers, ... */
-		max_ictlrs = ARRAY_SIZE(ictlr_regs);
-
-		/* ..., but Tegra20 only has four. */
-		if (of_machine_is_compatible("nvidia,tegra20"))
-			max_ictlrs--;
-	}
+	unsigned int i;
 
 	memset(&res, 0, sizeof(res));
 
@@ -362,5 +339,66 @@ void __init tegra_init_irq(void)
 	gic_arch_extn.irq_set_wake = tegra_set_wake;
 	gic_arch_extn.flags = IRQCHIP_MASK_ON_SUSPEND;
 
+	if (IS_ENABLED(CONFIG_PM_SLEEP))
+		register_syscore_ops(&tegra_legacy_irq_syscore_ops);
+
 	tegra114_gic_cpu_pm_registration();
 }
+
+void __init tegra_legacy_irq_init(void)
+{
+	unsigned int num_ictlrs;
+	struct device_node *np;
+
+
+	/*
+	 * If a matching device node was found, skip initialization since it
+	 * has already been done.
+	 */
+	np = of_find_matching_node(NULL, ictlr_matches);
+	if (np) {
+		of_node_put(np);
+		return;
+	}
+
+	/* Tegra30 and later have five interrupt controllers, ... */
+	num_ictlrs = ARRAY_SIZE(ictlr_regs);
+
+	/* ..., but Tegra20 only has four. */
+	if (of_machine_is_compatible("nvidia,tegra20"))
+		num_ictlrs--;
+
+	tegra_irq_init(num_ictlrs);
+}
+
+static int __init tegra_irq_of_init(struct device_node *node,
+				    struct device_node *parent)
+{
+	const struct tegra_ictlr_soc *soc;
+	const struct of_device_id *match;
+	struct resource res;
+	unsigned int i;
+
+	match = of_match_node(ictlr_matches, node);
+	if (!match)
+		return -ENODEV;
+
+	soc = match->data;
+
+	for (i = 0; i < soc->num_ictlrs; i++) {
+		if (of_address_to_resource(node, i, &res) < 0)
+			break;
+
+		ictlr_regs[i] = res;
+	}
+
+	WARN(i != soc->num_ictlrs,
+	     "Found %u interrupt controllers in DT; expected %u.\n",
+	     i, soc->num_ictlrs);
+
+	tegra_irq_init(soc->num_ictlrs);
+
+	return 0;
+}
+IRQCHIP_DECLARE(tegra30, "nvidia,tegra30-ictlr", tegra_irq_of_init);
+IRQCHIP_DECLARE(tegra20, "nvidia,tegra20-ictlr", tegra_irq_of_init);
