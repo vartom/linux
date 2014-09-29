@@ -492,38 +492,58 @@ out:
 	return;
 }
 
-static bool clk_ignore_unused;
+static unsigned long clk_ignore_unused_count = 1;
+
+void clk_ignore_unused(void)
+{
+	clk_prepare_lock();
+
+	if (clk_ignore_unused_count == 0)
+		pr_warn("clk: unused clocks already disabled\n");
+	else
+		clk_ignore_unused_count++;
+
+	clk_prepare_unlock();
+}
+
+void clk_unignore_unused(void)
+{
+	struct clk *clk;
+
+	clk_prepare_lock();
+
+	if (--clk_ignore_unused_count == 0) {
+		hlist_for_each_entry(clk, &clk_root_list, child_node)
+			clk_disable_unused_subtree(clk);
+
+		hlist_for_each_entry(clk, &clk_orphan_list, child_node)
+			clk_disable_unused_subtree(clk);
+
+		hlist_for_each_entry(clk, &clk_root_list, child_node)
+			clk_unprepare_unused_subtree(clk);
+
+		hlist_for_each_entry(clk, &clk_orphan_list, child_node)
+			clk_unprepare_unused_subtree(clk);
+	}
+
+	clk_prepare_unlock();
+}
+
 static int __init clk_ignore_unused_setup(char *__unused)
 {
-	clk_ignore_unused = true;
+	clk_ignore_unused();
 	return 1;
 }
 __setup("clk_ignore_unused", clk_ignore_unused_setup);
 
 static int clk_disable_unused(void)
 {
-	struct clk *clk;
+	clk_unignore_unused();
 
-	if (clk_ignore_unused) {
+	if (clk_ignore_unused_count > 0) {
 		pr_warn("clk: Not disabling unused clocks\n");
 		return 0;
 	}
-
-	clk_prepare_lock();
-
-	hlist_for_each_entry(clk, &clk_root_list, child_node)
-		clk_disable_unused_subtree(clk);
-
-	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
-		clk_disable_unused_subtree(clk);
-
-	hlist_for_each_entry(clk, &clk_root_list, child_node)
-		clk_unprepare_unused_subtree(clk);
-
-	hlist_for_each_entry(clk, &clk_orphan_list, child_node)
-		clk_unprepare_unused_subtree(clk);
-
-	clk_prepare_unlock();
 
 	return 0;
 }

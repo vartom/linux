@@ -125,6 +125,24 @@ int clk_set_phase(struct clk *clk, int degrees);
  */
 int clk_get_phase(struct clk *clk);
 
+/**
+ * clk_ignore_unused - request that unused clocks be kept running
+ *
+ * This function can be used by drivers to request that unused clocks are kept
+ * running. It is useful for drivers that take over hardware previously set up
+ * by firmware and which may not explicitly claim all clocks.
+ */
+void clk_ignore_unused(void);
+
+/**
+ * clk_unignore_unused - release unused clocks
+ *
+ * Use this function to undo the effects of clk_ignore_unused(). It is meant
+ * to be called by drivers for firmware devices after they've handed off the
+ * device to a proper hardware-specific driver.
+ */
+void clk_unignore_unused(void);
+
 #else
 
 static inline long clk_get_accuracy(struct clk *clk)
@@ -140,6 +158,14 @@ static inline long clk_set_phase(struct clk *clk, int phase)
 static inline long clk_get_phase(struct clk *clk)
 {
 	return -ENOTSUPP;
+}
+
+static inline void clk_ignore_unused(void)
+{
+}
+
+static inline void clk_unignore_unused(void)
+{
 }
 
 #endif
