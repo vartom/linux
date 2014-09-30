@@ -100,13 +100,17 @@
 
  /* Convert a physical IO address to virtual IO address */
 #define AT91_IO_P2V(x)		((x) - AT91_IO_PHYS_BASE + AT91_IO_VIRT_BASE)
+#ifdef CONFIG_MMU
 #define AT91_ALT_IO_P2V(x)	((x) - AT91_ALT_IO_PHYS_BASE + AT91_ALT_IO_VIRT_BASE)
+#endif
 
 /*
  * Virtual to Physical Address mapping for IO devices.
  */
 #define AT91_VA_BASE_SYS	AT91_IO_P2V(AT91_BASE_SYS)
+#ifdef CONFIG_MMU
 #define AT91_ALT_VA_BASE_SYS	AT91_ALT_IO_P2V(AT91_ALT_BASE_SYS)
+#endif
 
  /* Internal SRAM is mapped below the IO devices */
 #define AT91_SRAM_MAX		SZ_1M
