@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
 #include <linux/iommu.h>
@@ -158,6 +159,52 @@ static void nouveau_platform_remove_iommu(struct device *dev,
 	}
 }
 
+struct nouveau_platform_probe_data {
+	const char *soc;
+	const char *gpu;
+	bool use_ext_firmware;
+};
+
+static const struct firmware *
+nouveau_platform_load_netlist_fw(struct platform_device *pdev)
+{
+	const struct of_device_id *match;
+	const struct nouveau_platform_probe_data *pdata;
+	const struct firmware *ctxsw_fw;
+	char f[32];
+	int err;
+
+	match = of_match_device(pdev->dev.driver->of_match_table, &pdev->dev);
+	if (!match) {
+		dev_warn(&pdev->dev, "cannot find OF match for device\n");
+		return NULL;
+	}
+	pdata = match->data;
+	if (!pdata) {
+		dev_warn(&pdev->dev, "no probe data for device\n");
+		return NULL;
+	}
+
+	if (!pdata->use_ext_firmware)
+		return NULL;
+
+	err = snprintf(f, sizeof(f), "nvidia/%s/%s_ctxsw.bin", pdata->soc,
+		 pdata->gpu);
+	if (err >= sizeof(f)) {
+		dev_err(&pdev->dev, "firmware path too long (max %d)\n",
+			 sizeof(f));
+		return ERR_PTR(-ENOSPC);
+	}
+
+	err = request_firmware(&ctxsw_fw, f, &pdev->dev);
+	if (err) {
+		dev_err(&pdev->dev, "error loading firmware: %d\n", err);
+		return ERR_PTR(err);
+	}
+
+	return ctxsw_fw;
+}
+
 static int nouveau_platform_probe(struct platform_device *pdev)
 {
 	struct nouveau_platform_gpu *gpu;
@@ -187,9 +234,15 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 
 	nouveau_platform_probe_iommu(&pdev->dev, gpu);
 
+	gpu->ctxsw_fw = nouveau_platform_load_netlist_fw(pdev);
+	if (IS_ERR(gpu->ctxsw_fw)) {
+		err = PTR_ERR(gpu->ctxsw_fw);
+		goto remove_iommu;
+	}
+
 	err = nouveau_platform_power_up(gpu);
 	if (err)
-		return err;
+		goto release_fw;
 
 	drm = nouveau_platform_device_create(pdev, &device);
 	if (IS_ERR(drm)) {
@@ -204,13 +257,23 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto err_unref;
 
-	return 0;
+	/*
+	 * we can release the firmware now since it has been consumed during
+	 * probe
+	 */
+	goto release_fw;
 
 err_unref:
 	drm_dev_unref(drm);
 
 power_down:
 	nouveau_platform_power_down(gpu);
+
+release_fw:
+	if (gpu->ctxsw_fw)
+		release_firmware(gpu->ctxsw_fw);
+
+remove_iommu:
 	nouveau_platform_remove_iommu(&pdev->dev, gpu);
 
 	return err;
@@ -234,8 +297,17 @@ static int nouveau_platform_remove(struct platform_device *pdev)
 }
 
 #if IS_ENABLED(CONFIG_OF)
+static struct nouveau_platform_probe_data gk20a_probe_data = {
+	.soc = "tegra124",
+	.gpu = "gk20a",
+	.use_ext_firmware = true,
+};
+
 static const struct of_device_id nouveau_platform_match[] = {
-	{ .compatible = "nvidia,gk20a" },
+	{
+		.compatible = "nvidia,gk20a",
+		.data = &gk20a_probe_data,
+	},
 	{ }
 };
 

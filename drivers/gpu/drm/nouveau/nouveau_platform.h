@@ -54,6 +54,8 @@ struct nouveau_platform_gpu {
 		struct iommu_domain *domain;
 		unsigned long pgshift;
 	} iommu;
+
+	const struct firmware *ctxsw_fw;
 };
 
 struct nouveau_platform_device {
