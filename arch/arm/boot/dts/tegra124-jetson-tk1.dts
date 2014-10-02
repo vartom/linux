@@ -13,7 +13,11 @@
 	};
 
 	memory {
-		reg = <0x0 0x80000000 0x0 0x80000000>;
+		/*
+		 * U-Boot with PSCI support uses the uppermost megabyte to
+		 * store the PSCI firmware.
+		 */
+		reg = <0x0 0x80000000 0x0 0x7ff00000>;
 	};
 
 	pcie-controller@0,01003000 {

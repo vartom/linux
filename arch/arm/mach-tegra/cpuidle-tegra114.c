@@ -28,6 +28,9 @@
 #include "pm.h"
 #include "sleep.h"
 
+/* need to disable this to prevent cpuidle to powergate CPUs when PSCI is used */
+#undef CONFIG_PM_SLEEP
+
 #ifdef CONFIG_PM_SLEEP
 #define TEGRA114_MAX_STATES 2
 #else
