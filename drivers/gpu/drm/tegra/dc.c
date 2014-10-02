@@ -10,6 +10,7 @@
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #include <soc/tegra/pmc.h>
@@ -1553,6 +1554,9 @@ static int tegra_dc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dc);
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
+
 	return 0;
 }
 
@@ -1573,6 +1577,9 @@ static int tegra_dc_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to remove RGB output: %d\n", err);
 		return err;
 	}
+
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	reset_control_assert(dc->rst);
 
