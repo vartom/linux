@@ -1455,9 +1455,9 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 static uint32_t mga_vga_calculate_mode_bandwidth(struct drm_display_mode *mode,
 							int bits_per_pixel)
 {
-	uint32_t total_area, divisor;
-	int64_t active_area, pixels_per_second, bandwidth;
 	uint64_t bytes_per_pixel = (bits_per_pixel + 7) / 8;
+	uint32_t total_area, divisor, active_area;
+	uint64_t pixels_per_second, bandwidth;
 
 	divisor = 1024;
 

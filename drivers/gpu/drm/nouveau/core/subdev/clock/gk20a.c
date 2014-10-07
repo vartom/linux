@@ -138,7 +138,7 @@ gk20a_pllg_read_mnp(struct gk20a_clock_priv *priv)
 static u32
 gk20a_pllg_calc_rate(struct gk20a_clock_priv *priv)
 {
-	u32 rate;
+	u64 rate;
 	u32 divider;
 
 	rate = priv->parent_rate * priv->n;

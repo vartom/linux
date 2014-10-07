@@ -98,12 +98,14 @@ static struct map_desc at91_io_desc __initdata __maybe_unused = {
 	.type		= MT_DEVICE,
 };
 
+#ifdef CONFIG_MMU
 static struct map_desc at91_alt_io_desc __initdata __maybe_unused = {
 	.virtual	= (unsigned long)AT91_ALT_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_ALT_BASE_SYS),
 	.length		= 24 * SZ_1K,
 	.type		= MT_DEVICE,
 };
+#endif
 
 static void __init soc_detect(u32 dbgu_base)
 {
@@ -253,6 +255,7 @@ static void __init soc_detect(u32 dbgu_base)
 	}
 }
 
+#ifdef CONFIG_MMU
 static void __init alt_soc_detect(u32 dbgu_base)
 {
 	u32 cidr, socid;
@@ -300,6 +303,7 @@ static void __init alt_soc_detect(u32 dbgu_base)
 		}
 	}
 }
+#endif
 
 static const char *soc_name[] = {
 	[AT91_SOC_RM9200]	= "at91rm9200",
@@ -383,6 +387,7 @@ void __init at91_map_io(void)
 		at91_boot_soc.map_io();
 }
 
+#ifdef CONFIG_MMU
 void __init at91_alt_map_io(void)
 {
 	/* Map peripherals */
@@ -407,6 +412,7 @@ void __init at91_alt_map_io(void)
 	if (at91_boot_soc.map_io)
 		at91_boot_soc.map_io();
 }
+#endif
 
 void __iomem *at91_matrix_base;
 EXPORT_SYMBOL_GPL(at91_matrix_base);
