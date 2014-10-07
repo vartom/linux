@@ -7,6 +7,12 @@
  * published by the Free Software Foundation.
  */
 
+/*
+ * TODO: Revisit reference counting on framebuffers. Running with the SMMU
+ * enabled causes memory controller access errors when unloading the Tegra
+ * DRM driver because framebuffers get unmapped from IOVA space too early.
+ */
+
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
