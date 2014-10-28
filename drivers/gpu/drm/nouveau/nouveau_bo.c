@@ -470,6 +470,10 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 	if (nvbo->force_coherent)
 		return;
 
+	/* trying to sync an imported buffer object will crash */
+	if (nvbo->bo.sg)
+		return;
+
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
 		dma_sync_single_for_device(nv_device_base(device),
 			ttm_dma->dma_address[i], PAGE_SIZE, DMA_TO_DEVICE);
@@ -488,6 +492,10 @@ nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
 
 	/* Don't waste time looping if the object is coherent */
 	if (nvbo->force_coherent)
+		return;
+
+	/* trying to sync an imported buffer object will crash */
+	if (nvbo->bo.sg)
 		return;
 
 	for (i = 0; i < ttm_dma->ttm.num_pages; i++)
