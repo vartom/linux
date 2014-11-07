@@ -191,7 +191,7 @@ nouveau_platform_load_netlist_fw(struct platform_device *pdev)
 	err = snprintf(f, sizeof(f), "nvidia/%s/%s_ctxsw.bin", pdata->soc,
 		 pdata->gpu);
 	if (err >= sizeof(f)) {
-		dev_err(&pdev->dev, "firmware path too long (max %d)\n",
+		dev_err(&pdev->dev, "firmware path too long (max %zu)\n",
 			 sizeof(f));
 		return ERR_PTR(-ENOSPC);
 	}
