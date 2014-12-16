@@ -1224,6 +1224,22 @@ extern int drm_crtc_init_with_planes(struct drm_device *dev,
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
 extern unsigned int drm_crtc_index(struct drm_crtc *crtc);
 
+extern u32 drm_crtc_vblank_count(struct drm_crtc *crtc);
+extern u32 drm_crtc_vblank_count_and_time(struct drm_crtc *crtc,
+					  struct timeval *vblanktime);
+extern void drm_crtc_send_vblank_event(struct drm_crtc *crtc,
+				       struct drm_pending_vblank_event *e);
+extern bool drm_crtc_handle_vblank(struct drm_crtc *crtc);
+extern int drm_crtc_vblank_get(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_put(struct drm_crtc *crtc);
+extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
+extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
+
+extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
+					    const struct drm_display_mode *mode);
+
 /**
  * drm_crtc_mask - find the mask of a registered CRTC
  * @crtc: CRTC to find mask for
