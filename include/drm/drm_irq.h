@@ -159,11 +159,6 @@ extern void drm_vblank_cleanup(struct drm_device *dev);
 extern u32 drm_accurate_vblank_count(struct drm_crtc *crtc);
 extern u32 drm_vblank_no_hw_counter(struct drm_device *dev, unsigned int pipe);
 
-extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-						 unsigned int pipe, int *max_error,
-						 struct timeval *vblank_time,
-						 unsigned flags,
-						 const struct drm_display_mode *mode);
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode);
 
