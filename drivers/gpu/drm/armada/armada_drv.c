@@ -239,7 +239,7 @@ void armada_drm_vbl_event_add(struct armada_crtc *dcrtc,
 	if (list_empty(&evt->node)) {
 		list_add_tail(&evt->node, &dcrtc->vbl_list);
 
-		drm_vblank_get(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_vblank_get(&dcrtc->crtc);
 	}
 	spin_unlock_irqrestore(&dcrtc->irq_lock, flags);
 }
@@ -249,7 +249,7 @@ void armada_drm_vbl_event_remove(struct armada_crtc *dcrtc,
 {
 	if (!list_empty(&evt->node)) {
 		list_del_init(&evt->node);
-		drm_vblank_put(dcrtc->crtc.dev, dcrtc->num);
+		drm_crtc_vblank_put(&dcrtc->crtc);
 	}
 }
 
