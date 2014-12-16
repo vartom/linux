@@ -307,6 +307,11 @@ struct drm_crtc_state {
 	struct drm_atomic_state *state;
 };
 
+/* get_scanout_position() return flags */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
+
 /**
  * struct drm_crtc_funcs - control CRTCs for a given device
  * @save: save CRTC state
@@ -326,6 +331,7 @@ struct drm_crtc_state {
  *    (do not call directly, use drm_atomic_crtc_set_property())
  * @atomic_get_property: get a property on an atomic state for this CRTC
  *    (do not call directly, use drm_atomic_crtc_get_property())
+ * @get_scanout_position: return the current scanout position
  *
  * The drm_crtc_funcs structure is the central CRTC management structure
  * in the DRM.  Each CRTC controls one or more connectors (note that the name
@@ -389,6 +395,38 @@ struct drm_crtc_funcs {
 				   const struct drm_crtc_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * Called by vblank timestamping code.
+	 *
+	 * Return the current display scanout position from a crtc, and an
+	 * optional accurate ktime_get timestamp of when position was measured.
+	 *
+	 * \param crtc CRTC to query.
+	 * \param flags Flags from the caller (DRM_CALLED_FROM_VBLIRQ or 0).
+	 * \param *vpos Target location for current vertical scanout position.
+	 * \param *hpos Target location for current horizontal scanout position.
+	 * \param *stime Target location for timestamp taken immediately before
+	 *               scanout position query. Can be NULL to skip timestamp.
+	 * \param *etime Target location for timestamp taken immediately after
+	 *               scanout position query. Can be NULL to skip timestamp.
+	 *
+	 * Returns vpos as a positive number while in active scanout area.
+	 * Returns vpos as a negative number inside vblank, counting the number
+	 * of scanlines to go until end of vblank, e.g., -1 means "one scanline
+	 * until start of active scanout / end of vblank."
+	 *
+	 * \return Flags, or'ed together as follows:
+	 *
+	 * DRM_SCANOUTPOS_VALID = Query successful.
+	 * DRM_SCANOUTPOS_INVBL = Inside vblank.
+	 * DRM_SCANOUTPOS_ACCURATE = Returned position is accurate. A lack of
+	 * this flag means that returned position may be offset by a constant
+	 * but unknown small number of scanlines wrt. real scanout position.
+	 */
+	int (*get_scanout_position)(struct drm_crtc *crtc, unsigned int flags,
+				    int *vpos, int *hpos, ktime_t *stime,
+				    ktime_t *etime);
 };
 
 /**
@@ -1236,6 +1274,13 @@ extern void drm_crtc_wait_one_vblank(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_off(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_reset(struct drm_crtc *crtc);
 extern void drm_crtc_vblank_on(struct drm_crtc *crtc);
+
+extern int drm_calc_vbltimestamp_from_scanoutpos(struct drm_crtc *crtc,
+						 int *max_error,
+						 struct timeval *vblank_time,
+						 unsigned flags,
+						 const struct drm_crtc *refcrtc,
+						 const struct drm_display_mode *mode);
 
 extern void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 					    const struct drm_display_mode *mode);

@@ -92,8 +92,9 @@ calc(int blanks, int blanke, int total, int line)
 }
 
 int
-nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
-				ktime_t *stime, ktime_t *etime)
+nouveau_display_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			   int *vpos, int *hpos, ktime_t *stime,
+			   ktime_t *etime)
 {
 	struct {
 		struct nv04_disp_mthd_v0 base;
@@ -131,22 +132,6 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 }
 
 int
-nouveau_display_scanoutpos(struct drm_device *dev, int head, unsigned int flags,
-			   int *vpos, int *hpos, ktime_t *stime, ktime_t *etime)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (nouveau_crtc(crtc)->index == head) {
-			return nouveau_display_scanoutpos_head(crtc, vpos, hpos,
-							       stime, etime);
-		}
-	}
-
-	return 0;
-}
-
-int
 nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
 			 struct timeval *time, unsigned flags)
 {
@@ -154,8 +139,8 @@ nouveau_display_vblstamp(struct drm_device *dev, int head, int *max_error,
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (nouveau_crtc(crtc)->index == head) {
-			return drm_calc_vbltimestamp_from_scanoutpos(dev,
-					head, max_error, time, flags, crtc,
+			return drm_calc_vbltimestamp_from_scanoutpos(crtc,
+					max_error, time, flags, crtc,
 					&crtc->hwmode);
 		}
 	}

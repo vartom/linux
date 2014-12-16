@@ -687,14 +687,14 @@ EXPORT_SYMBOL(drm_calc_timestamping_constants);
  * DRM_VBLANKTIME_INVBL - Timestamp taken while scanout was in vblank interval.
  *
  */
-int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
-					  unsigned int pipe,
+int drm_calc_vbltimestamp_from_scanoutpos(struct drm_crtc *crtc,
 					  int *max_error,
 					  struct timeval *vblank_time,
 					  unsigned flags,
 					  const struct drm_crtc *refcrtc,
 					  const struct drm_display_mode *mode)
 {
+	const struct drm_crtc_funcs *funcs = crtc->funcs;
 	struct timeval tv_etime;
 	ktime_t stime, etime;
 	int vbl_status;
@@ -702,16 +702,9 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	int framedur_ns, linedur_ns, pixeldur_ns, delta_ns, duration_ns;
 	bool invbl;
 
-	if (pipe >= dev->num_crtcs) {
-		DRM_ERROR("Invalid crtc %u\n", pipe);
-		return -EINVAL;
-	}
-
 	/* Scanout position query not supported? Should not happen. */
-	if (!dev->driver->get_scanout_position) {
-		DRM_ERROR("Called from driver w/o get_scanout_position()!?\n");
-		return -EIO;
-	}
+	if (WARN_ON(funcs->get_scanout_position == NULL))
+		return -ENOSYS;
 
 	/* Durations of frames, lines, pixels in nanoseconds. */
 	framedur_ns = refcrtc->framedur_ns;
@@ -722,7 +715,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 	 * Happens during initial modesetting of a crtc.
 	 */
 	if (framedur_ns == 0) {
-		DRM_DEBUG("crtc %u: Noop due to uninitialized mode.\n", pipe);
+		DRM_DEBUG("[CRTC:%u] Noop due to uninitialized mode.\n",
+			  crtc->base.id);
 		return -EAGAIN;
 	}
 
@@ -738,13 +732,13 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		 * Get vertical and horizontal scanout position vpos, hpos,
 		 * and bounding timestamps stime, etime, pre/post query.
 		 */
-		vbl_status = dev->driver->get_scanout_position(dev, pipe, flags, &vpos,
-							       &hpos, &stime, &etime);
+		vbl_status = funcs->get_scanout_position(crtc, flags, &vpos,
+							 &hpos, &stime, &etime);
 
 		/* Return as no-op if scanout query unsupported or failed. */
 		if (!(vbl_status & DRM_SCANOUTPOS_VALID)) {
-			DRM_DEBUG("crtc %u : scanoutpos query failed [%d].\n",
-				  pipe, vbl_status);
+			DRM_DEBUG("[CRTC:%u] scanoutpos query failed [%d].\n",
+				  crtc->base.id, vbl_status);
 			return -EIO;
 		}
 
@@ -758,8 +752,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 
 	/* Noisy system timing? */
 	if (i == DRM_TIMESTAMP_MAXRETRIES) {
-		DRM_DEBUG("crtc %u: Noisy timestamp %d us > %d us [%d reps].\n",
-			  pipe, duration_ns/1000, *max_error/1000, i);
+		DRM_DEBUG("[CRTC:%u] Noisy timestamp %d us > %d us [%d reps].\n",
+			  crtc->base.id, duration_ns/1000, *max_error/1000, i);
 	}
 
 	/* Return upper bound of timestamp precision error. */
@@ -792,8 +786,8 @@ int drm_calc_vbltimestamp_from_scanoutpos(struct drm_device *dev,
 		etime = ktime_sub_ns(etime, delta_ns);
 	*vblank_time = ktime_to_timeval(etime);
 
-	DRM_DEBUG("crtc %u : v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
-		  pipe, (int)vbl_status, hpos, vpos,
+	DRM_DEBUG("[CRTC:%u] v %d p(%d,%d)@ %ld.%ld -> %ld.%ld [e %d us, %d rep]\n",
+		  crtc->base.id, (int)vbl_status, hpos, vpos,
 		  (long)tv_etime.tv_sec, (long)tv_etime.tv_usec,
 		  (long)vblank_time->tv_sec, (long)vblank_time->tv_usec,
 		  duration_ns/1000, i);

@@ -67,8 +67,8 @@ int  nouveau_display_suspend(struct drm_device *dev, bool runtime);
 void nouveau_display_resume(struct drm_device *dev, bool runtime);
 int  nouveau_display_vblank_enable(struct drm_device *, int);
 void nouveau_display_vblank_disable(struct drm_device *, int);
-int  nouveau_display_scanoutpos(struct drm_device *, int, unsigned int,
-				int *, int *, ktime_t *, ktime_t *);
+int  nouveau_display_scanoutpos(struct drm_crtc *, unsigned int, int *, int *,
+				ktime_t *, ktime_t *);
 int  nouveau_display_vblstamp(struct drm_device *, int, int *,
 			      struct timeval *, unsigned);
 

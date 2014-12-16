@@ -875,7 +875,7 @@ extern int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 				   int x, int y);
 extern void radeon_cursor_reset(struct drm_crtc *crtc);
 
-extern int radeon_get_crtc_scanoutpos(struct drm_device *dev, int crtc,
+extern int radeon_crtc_get_scanoutpos(struct drm_crtc *crtc,
 				      unsigned int flags,
 				      int *vpos, int *hpos, ktime_t *stime,
 				      ktime_t *etime);
