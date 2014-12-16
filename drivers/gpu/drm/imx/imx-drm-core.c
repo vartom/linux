@@ -45,14 +45,14 @@ struct imx_drm_device {
 
 struct imx_drm_crtc {
 	struct drm_crtc				*crtc;
-	int					pipe;
+	unsigned int				pipe;
 	struct imx_drm_crtc_helper_funcs	imx_drm_helper_funcs;
 };
 
 static int legacyfb_depth = 16;
 module_param(legacyfb_depth, int, 0444);
 
-int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
+unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
 	return crtc->pipe;
 }
