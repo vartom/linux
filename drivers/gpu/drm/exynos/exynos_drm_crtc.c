@@ -202,11 +202,9 @@ void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int pipe)
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (exynos_crtc->event) {
-
-		drm_send_vblank_event(dev, -1, exynos_crtc->event);
+		drm_send_vblank_event(dev, pipe, exynos_crtc->event);
 		drm_vblank_put(dev, pipe);
 		wake_up(&exynos_crtc->pending_flip_queue);
-
 	}
 
 	exynos_crtc->event = NULL;
