@@ -1028,6 +1028,9 @@ EXPORT_SYMBOL(drm_crtc_send_vblank_event);
  * drm_vblank_enable - enable the vblank interrupt on a CRTC
  * @dev: DRM device
  * @pipe: CRTC index
+ *
+ * Returns:
+ * Zero on success or a negative error code on failure.
  */
 static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
 {
@@ -1072,7 +1075,7 @@ static int drm_vblank_enable(struct drm_device *dev, unsigned int pipe)
  * This is the legacy version of drm_crtc_vblank_get().
  *
  * Returns:
- * Zero on success, nonzero on failure.
+ * Zero on success or a negative error code on failure.
  */
 int drm_vblank_get(struct drm_device *dev, unsigned int pipe)
 {
@@ -1112,7 +1115,7 @@ EXPORT_SYMBOL(drm_vblank_get);
  * This is the native kms version of drm_vblank_get().
  *
  * Returns:
- * Zero on success, nonzero on failure.
+ * Zero on success or a negative error code on failure.
  */
 int drm_crtc_vblank_get(struct drm_crtc *crtc)
 {
