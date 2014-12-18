@@ -2026,11 +2026,26 @@ static int tegra_dc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tegra_dc_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int tegra_dc_resume(struct device *dev)
+{
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(tegra_dc_pm_ops, tegra_dc_suspend, tegra_dc_resume);
+
 struct platform_driver tegra_dc_driver = {
 	.driver = {
 		.name = "tegra-dc",
 		.owner = THIS_MODULE,
 		.of_match_table = tegra_dc_of_match,
+		.pm = &tegra_dc_pm_ops,
 	},
 	.probe = tegra_dc_probe,
 	.remove = tegra_dc_remove,
