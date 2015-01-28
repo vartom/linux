@@ -1210,6 +1210,8 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
 
+	pr_debug("> %s(crtc=%p)\n", __func__, crtc);
+
 	if (!tegra_dc_idle(dc)) {
 		tegra_dc_stop(dc);
 
@@ -1244,12 +1246,15 @@ static void tegra_crtc_disable(struct drm_crtc *crtc)
 	}
 
 	drm_crtc_vblank_off(crtc);
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_crtc_enable(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 	u32 value;
+
+	pr_debug("> %s(crtc=%p)\n", __func__, crtc);
 
 	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_COMMAND);
 	value &= ~DISP_CTRL_MODE_MASK;
@@ -1263,6 +1268,8 @@ static void tegra_crtc_enable(struct drm_crtc *crtc)
 
 	drm_crtc_vblank_on(crtc);
 	tegra_dc_commit(dc);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static int tegra_crtc_atomic_check(struct drm_crtc *crtc,

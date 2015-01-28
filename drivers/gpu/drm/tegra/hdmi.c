@@ -514,6 +514,8 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	const struct tegra_hdmi_audio_config *config;
 	u32 source, value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	switch (hdmi->audio_source) {
 	case HDA:
 		if (hdmi->config->has_hda)
@@ -620,6 +622,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 
 	tegra_hdmi_setup_audio_fs_tables(hdmi);
 
+	pr_debug("< %s()\n", __func__);
 	return 0;
 }
 
@@ -627,18 +630,26 @@ static void tegra_hdmi_disable_audio(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	value &= ~GENERIC_CTRL_AUDIO;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_enable_audio(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	value |= GENERIC_CTRL_AUDIO;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static inline u32 tegra_hdmi_subpack(const u8 *ptr, size_t size)
@@ -710,6 +721,8 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 	u8 buffer[17];
 	ssize_t err;
 
+	pr_debug("> %s(hdmi=%p, mode=%p)\n", __func__, hdmi, mode);
+
 	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to setup AVI infoframe: %zd\n", err);
@@ -723,24 +736,33 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 	}
 
 	tegra_hdmi_write_infopack(hdmi, buffer, err);
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_disable_avi_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_enable_avi_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
 	value |= INFOFRAME_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
@@ -748,6 +770,8 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 	struct hdmi_audio_infoframe frame;
 	u8 buffer[14];
 	ssize_t err;
+
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
 
 	err = hdmi_audio_infoframe_init(&frame);
 	if (err < 0) {
@@ -772,24 +796,33 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 	 * bytes can be programmed.
 	 */
 	tegra_hdmi_write_infopack(hdmi, buffer, min_t(size_t, 10, err));
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_disable_audio_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
 	value &= ~INFOFRAME_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_enable_audio_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
 	value |= INFOFRAME_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
@@ -797,6 +830,8 @@ static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 	struct hdmi_vendor_infoframe frame;
 	u8 buffer[10];
 	ssize_t err;
+
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
 
 	hdmi_vendor_infoframe_init(&frame);
 	frame.s3d_struct = HDMI_3D_STRUCTURE_FRAME_PACKING;
@@ -809,24 +844,33 @@ static void tegra_hdmi_setup_stereo_infoframe(struct tegra_hdmi *hdmi)
 	}
 
 	tegra_hdmi_write_infopack(hdmi, buffer, err);
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_disable_stereo_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	value &= ~GENERIC_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_enable_stereo_infoframe(struct tegra_hdmi *hdmi)
 {
 	u32 value;
 
+	pr_debug("> %s(hdmi=%p)\n", __func__, hdmi);
+
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
 	value |= GENERIC_CTRL_ENABLE;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_setup_tmds(struct tegra_hdmi *hdmi,
@@ -1142,6 +1186,9 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	pr_debug("> %s(encoder=%p)\n", __func__, encoder);
+	pr_debug("  crtc: %p\n", encoder->crtc);
+
 	/* detach SOR */
 	value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_STATE1);
 	value &= ~SOR_STATE_ATTACHED;
@@ -1188,6 +1235,8 @@ static void tegra_hdmi_encoder_disable(struct drm_encoder *encoder)
 	}
 
 	clk_disable(hdmi->clk);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
@@ -1197,6 +1246,9 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 	struct tegra_hdmi *hdmi = to_hdmi(output);
 	u32 value;
 	int err;
+
+	pr_debug("> %s(encoder=%p)\n", __func__, encoder);
+	pr_debug("  crtc: %p\n", encoder->crtc);
 
 	err = clk_enable(hdmi->clk);
 	if (err < 0) {
@@ -1249,6 +1301,8 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 	value |= SOR_STATE_ATTACHED;
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_STATE1);
 	tegra_hdmi_update(hdmi);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static int
