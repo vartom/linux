@@ -448,13 +448,17 @@ static int tegra_dsi_get_format(enum mipi_dsi_pixel_format format,
 	return 0;
 }
 
-static void tegra_dsi_ganged_enable(struct tegra_dsi *dsi, unsigned int start,
-				    unsigned int size)
+static void tegra_dsi_ganged_configure(struct tegra_dsi *dsi,
+				       unsigned int start,
+				       unsigned int size)
 {
-	u32 value;
-
 	tegra_dsi_writel(dsi, start, DSI_GANGED_MODE_START);
 	tegra_dsi_writel(dsi, size << 16 | size, DSI_GANGED_MODE_SIZE);
+}
+
+static void tegra_dsi_ganged_enable(struct tegra_dsi *dsi)
+{
+	u32 value;
 
 	value = DSI_GANGED_MODE_CONTROL_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_GANGED_MODE_CONTROL);
@@ -510,34 +514,6 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		DRM_DEBUG_KMS("Command mode\n");
 		pkt_seq = pkt_seq_command_mode;
 	}
-
-	value = DSI_CONTROL_CHANNEL(0) |
-		DSI_CONTROL_FORMAT(state->format) |
-		DSI_CONTROL_LANES(dsi->lanes - 1) |
-		DSI_CONTROL_SOURCE(pipe);
-	tegra_dsi_writel(dsi, value, DSI_CONTROL);
-
-	tegra_dsi_writel(dsi, dsi->video_fifo_depth, DSI_MAX_THRESHOLD);
-
-	value = DSI_HOST_CONTROL_HS;
-	tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
-
-	value = tegra_dsi_readl(dsi, DSI_CONTROL);
-
-	if (dsi->flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
-		value |= DSI_CONTROL_HS_CLK_CTRL;
-
-	value &= ~DSI_CONTROL_TX_TRIG(3);
-
-	/* enable DCS commands for command mode */
-	if (dsi->flags & MIPI_DSI_MODE_VIDEO)
-		value &= ~DSI_CONTROL_DCS_ENABLE;
-	else
-		value |= DSI_CONTROL_DCS_ENABLE;
-
-	value |= DSI_CONTROL_VIDEO_ENABLE;
-	value &= ~DSI_CONTROL_HOST_ENABLE;
-	tegra_dsi_writel(dsi, value, DSI_CONTROL);
 
 	for (i = 0; i < NUM_PKT_SEQ; i++)
 		tegra_dsi_writel(dsi, pkt_seq[i], DSI_PKT_SEQ_0_LO + i);
@@ -618,9 +594,9 @@ static void tegra_dsi_configure(struct tegra_dsi *dsi, unsigned int pipe,
 		 * TODO: Support modes other than symmetrical left-right
 		 * split.
 		 */
-		tegra_dsi_ganged_enable(dsi, 0, mode->hdisplay / 2);
-		tegra_dsi_ganged_enable(dsi->slave, mode->hdisplay / 2,
-					mode->hdisplay / 2);
+		tegra_dsi_ganged_configure(dsi, 0, mode->hdisplay / 2);
+		tegra_dsi_ganged_configure(dsi->slave, mode->hdisplay / 2,
+					   mode->hdisplay / 2);
 	}
 }
 
@@ -641,12 +617,56 @@ static int tegra_dsi_wait_idle(struct tegra_dsi *dsi, unsigned long timeout)
 	return -ETIMEDOUT;
 }
 
+static void tegra_dsi_video_enable(struct tegra_dsi *dsi)
+{
+	/*
+	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
+	struct tegra_dsi_state *state;
+	*/
+	u32 value;
+
+	/* XXX: pass in state into this function? */
+	/*
+	if (dsi->master)
+		state = tegra_dsi_get_state(dsi->master);
+	else
+		state = tegra_dsi_get_state(dsi);
+	*/
+
+	tegra_dsi_writel(dsi, dsi->video_fifo_depth, DSI_MAX_THRESHOLD);
+
+	value = tegra_dsi_readl(dsi, DSI_CONTROL);
+
+	value |= DSI_CONTROL_LANES(dsi->lanes - 1);
+
+	if (dsi->flags & MIPI_DSI_CLOCK_NON_CONTINUOUS)
+		value |= DSI_CONTROL_HS_CLK_CTRL;
+
+	value &= ~DSI_CONTROL_TX_TRIG(3);
+
+	/* enable DCS commands for command mode */
+	if (dsi->flags & MIPI_DSI_MODE_VIDEO)
+		value &= ~DSI_CONTROL_DCS_ENABLE;
+	else
+		value |= DSI_CONTROL_DCS_ENABLE;
+
+	value |= DSI_CONTROL_VIDEO_ENABLE;
+	value &= ~DSI_CONTROL_HOST_ENABLE;
+	tegra_dsi_writel(dsi, value, DSI_CONTROL);
+
+	tegra_dsi_writel(dsi, DSI_HOST_CONTROL_HS, DSI_HOST_CONTROL);
+
+	if (dsi->slave)
+		tegra_dsi_video_enable(dsi->slave);
+}
+
 static void tegra_dsi_video_disable(struct tegra_dsi *dsi)
 {
 	u32 value;
 
 	value = tegra_dsi_readl(dsi, DSI_CONTROL);
 	value &= ~DSI_CONTROL_VIDEO_ENABLE;
+	value |= DSI_CONTROL_HOST_ENABLE;
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
 
 	if (dsi->slave)
@@ -655,8 +675,10 @@ static void tegra_dsi_video_disable(struct tegra_dsi *dsi)
 
 static void tegra_dsi_ganged_disable(struct tegra_dsi *dsi)
 {
+	/*
 	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_START);
 	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_SIZE);
+	*/
 	tegra_dsi_writel(dsi, 0, DSI_GANGED_MODE_CONTROL);
 }
 
@@ -726,10 +748,6 @@ static void tegra_dsi_soft_reset(struct tegra_dsi *dsi)
 		tegra_dsi_soft_reset(dsi->slave);
 }
 
-static void tegra_dsi_connector_dpms(struct drm_connector *connector, int mode)
-{
-}
-
 static void tegra_dsi_connector_reset(struct drm_connector *connector)
 {
 	struct tegra_dsi_state *state;
@@ -756,7 +774,7 @@ tegra_dsi_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tegra_dsi_connector_funcs = {
-	.dpms = tegra_dsi_connector_dpms,
+	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = tegra_dsi_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -782,18 +800,6 @@ static const struct drm_encoder_funcs tegra_dsi_encoder_funcs = {
 	.destroy = tegra_output_encoder_destroy,
 };
 
-static void tegra_dsi_encoder_dpms(struct drm_encoder *encoder, int mode)
-{
-}
-
-static void tegra_dsi_encoder_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void tegra_dsi_encoder_commit(struct drm_encoder *encoder)
-{
-}
-
 static void tegra_dsi_encoder_mode_set(struct drm_encoder *encoder,
 				       struct drm_display_mode *mode,
 				       struct drm_display_mode *adjusted)
@@ -804,7 +810,24 @@ static void tegra_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	struct tegra_dsi_state *state;
 	u32 value;
 
+	pr_debug("> %s(encoder=%p, mode=%p, adjusted=%p)\n", __func__, encoder,
+		 mode, adjusted);
+
 	state = tegra_dsi_get_state(dsi);
+
+	value = tegra_dsi_readl(dsi, DSI_CONTROL);
+	value &= ~DSI_CONTROL_CHANNEL(3);
+	value &= ~DSI_CONTROL_FORMAT(3);
+	value &= ~DSI_CONTROL_LANES(3);
+	value &= ~DSI_CONTROL_SOURCE(1);
+
+	value |= DSI_CONTROL_FORMAT(state->format);
+	value |= DSI_CONTROL_LANES(dsi->lanes - 1);
+	value |= DSI_CONTROL_SOURCE(dc->pipe);
+	tegra_dsi_writel(dsi, value, DSI_CONTROL);
+
+	if (dsi->slave)
+		tegra_dsi_writel(dsi->slave, value, DSI_CONTROL);
 
 	tegra_dsi_set_timeout(dsi, state->bclk, state->vrefresh);
 
@@ -814,23 +837,9 @@ static void tegra_dsi_encoder_mode_set(struct drm_encoder *encoder,
 	 */
 	tegra_dsi_set_phy_timing(dsi, state->period * 8, &state->timing);
 
-	if (output->panel)
-		drm_panel_prepare(output->panel);
-
 	tegra_dsi_configure(dsi, dc->pipe, mode);
 
-	/* enable display controller */
-	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
-	value |= DSI_ENABLE;
-	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
-
-	tegra_dc_commit(dc);
-
-	/* enable DSI controller */
-	tegra_dsi_enable(dsi);
-
-	if (output->panel)
-		drm_panel_enable(output->panel);
+	pr_debug("< %s()\n", __func__);
 
 	return;
 }
@@ -843,6 +852,8 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	pr_debug("> %s(encoder=%p)\n", __func__, encoder);
+
 	if (output->panel)
 		drm_panel_disable(output->panel);
 
@@ -852,13 +863,13 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 	 * The following accesses registers of the display controller, so make
 	 * sure it's only executed when the output is attached to one.
 	 */
-	if (dc) {
+	//if (dc) {
 		value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
 		value &= ~DSI_ENABLE;
 		tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
 
 		tegra_dc_commit(dc);
-	}
+	//}
 
 	err = tegra_dsi_wait_idle(dsi, 100);
 	if (err < 0)
@@ -871,7 +882,43 @@ static void tegra_dsi_encoder_disable(struct drm_encoder *encoder)
 
 	tegra_dsi_disable(dsi);
 
+	pr_debug("< %s()\n", __func__);
 	return;
+}
+
+static void tegra_dsi_encoder_enable(struct drm_encoder *encoder)
+{
+	struct tegra_output *output = encoder_to_output(encoder);
+	struct tegra_dc *dc = to_tegra_dc(encoder->crtc);
+	struct tegra_dsi *dsi = to_dsi(output);
+	u32 value;
+
+	pr_debug("> %s(encoder=%p)\n", __func__, encoder);
+
+	if (output->panel)
+		drm_panel_prepare(output->panel);
+
+	/* enable display controller */
+	value = tegra_dc_readl(dc, DC_DISP_DISP_WIN_OPTIONS);
+	value |= DSI_ENABLE;
+	tegra_dc_writel(dc, value, DC_DISP_DISP_WIN_OPTIONS);
+
+	tegra_dc_commit(dc);
+
+	if (dsi->slave) {
+		tegra_dsi_ganged_enable(dsi->slave);
+		tegra_dsi_ganged_enable(dsi);
+	}
+
+	tegra_dsi_video_enable(dsi);
+
+	/* enable DSI controller */
+	tegra_dsi_enable(dsi);
+
+	if (output->panel)
+		drm_panel_enable(output->panel);
+
+	pr_debug("< %s()\n", __func__);
 }
 
 static int
@@ -956,11 +1003,9 @@ tegra_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs tegra_dsi_encoder_helper_funcs = {
-	.dpms = tegra_dsi_encoder_dpms,
-	.prepare = tegra_dsi_encoder_prepare,
-	.commit = tegra_dsi_encoder_commit,
 	.mode_set = tegra_dsi_encoder_mode_set,
 	.disable = tegra_dsi_encoder_disable,
+	.enable = tegra_dsi_encoder_enable,
 	.atomic_check = tegra_dsi_encoder_atomic_check,
 };
 
@@ -1274,6 +1319,7 @@ static ssize_t tegra_dsi_host_transfer(struct mipi_dsi_host *host,
 	if (packet.size > dsi->host_fifo_depth * 4)
 		value |= DSI_HOST_CONTROL_FIFO_SEL;
 
+	pr_debug("  DSI_HOST_CONTROL: %08x\n", value);
 	tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
 
 	/*
@@ -1287,7 +1333,12 @@ static ssize_t tegra_dsi_host_transfer(struct mipi_dsi_host *host,
 		tegra_dsi_writel(dsi, value, DSI_HOST_CONTROL);
 	}
 
-	value = DSI_CONTROL_LANES(0) | DSI_CONTROL_HOST_ENABLE;
+	value = tegra_dsi_readl(dsi, DSI_CONTROL);
+	value &= ~DSI_CONTROL_LANES(3);
+	value &= ~DSI_CONTROL_DCS_ENABLE;
+	value &= ~DSI_CONTROL_VIDEO_ENABLE;
+	value |= DSI_CONTROL_HOST_ENABLE;
+	pr_debug("  DSI_CONTROL: %08x\n", value);
 	tegra_dsi_writel(dsi, value, DSI_CONTROL);
 
 	/* write packet header, ECC is generated by hardware */
