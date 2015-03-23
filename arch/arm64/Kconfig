@@ -227,6 +227,15 @@ config ARCH_TEGRA_132_SOC
 	  but contains an NVIDIA Denver CPU complex in place of
 	  Tegra124's "4+1" Cortex-A15 CPU complex.
 
+config ARCH_TEGRA_210_SOC
+	bool "NVIDIA Tegra210 SoC"
+	depends on ARCH_TEGRA
+	select PINCTRL_TEGRA210
+	select USB_ULPI if USB_PHY
+	select USB_ULPI_VIEWPORT if USB_PHY
+	help
+	  Enable support for the NVIDIA Tegra210 SoC.
+
 config ARCH_SPRD
 	bool "Spreadtrum SoC platform"
 	help
