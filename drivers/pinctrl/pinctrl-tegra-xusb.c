@@ -203,6 +203,40 @@
 
 #define XUSB_PADCTL_IOPHY_MISC_PAD_S0_CTL6 0x15c
 
+#define XUSB_PADCTL_UPHY_PLL_P0_CTL1 0x360
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_NDIV_MASK (0xff << 20)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_NDIV(x) (((x) & 0xff) << 20)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_MDIV_MASK (0x3 << 16)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_LOCKDET_STATUS (1 << 15)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_PWR_OVRD (1 << 4)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_ENABLE (1 << 3)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_SLEEP (3 << 1)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL1_IDDQ (1 << 0)
+
+#define XUSB_PADCTL_UPHY_PLL_P0_CTL2 0x364
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_CTRL_MASK (0xffffff << 4)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_CTRL(x) (((x) & 0xffffff) << 4)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_OVRD (1 << 2)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_DONE (1 << 1)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_EN (1 << 0)
+
+#define XUSB_PADCTL_UPHY_PLL_P0_CTL4 0x36c
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_EN (1 << 15)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_SEL_MASK (0x3 << 12)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_SEL(x) (((x) & 0x3) << 12)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL4_REFCLKBUF_EN (1 << 8)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL4_REFCLK_SEL_MASK (0xf << 4)
+
+#define XUSB_PADCTL_UPHY_PLL_P0_CTL5 0x370
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL5_DCO_CTRL_MASK (0xff << 16)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL5_DCO_CTRL(x) (((x) & 0xff) << 16)
+
+#define XUSB_PADCTL_UPHY_PLL_P0_CTL8 0x37c
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_DONE (1 << 31)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_OVRD (1 << 15)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_CLK_EN (1 << 13)
+#define  XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_EN (1 << 12)
+
 struct tegra_xusb_padctl_function {
 	const char *name;
 	const char * const *groups;
@@ -228,6 +262,10 @@ struct tegra_xusb_padctl_soc {
 	u32 hs_discon_level;
 	u32 spare_in;
 	unsigned int hsic_port_offset;
+
+	struct {
+		unsigned int elpg_program;
+	} regs;
 };
 
 struct tegra_xusb_padctl_lane {
@@ -247,6 +285,12 @@ struct tegra_xusb_fuse_calibration {
 	u32 hs_iref_cap;
 	u32 hs_term_range_adj;
 	u32 hs_squelch_level;
+};
+
+struct tegra_xusb_pcie_phy {
+	struct tegra_xusb_padctl *padctl;
+
+	struct reset_control *reset;
 };
 
 struct tegra_xusb_usb3_phy {
@@ -316,19 +360,22 @@ mbox_work_to_padctl(struct work_struct *work)
 #define PIN_OTG_0   0
 #define PIN_OTG_1   1
 #define PIN_OTG_2   2
-#define PIN_ULPI_0  3
-#define PIN_HSIC_0  4
-#define PIN_HSIC_1  5
-#define PIN_PCIE_0  6
-#define PIN_PCIE_1  7
-#define PIN_PCIE_2  8
-#define PIN_PCIE_3  9
-#define PIN_PCIE_4 10
-#define PIN_SATA_0 11
+#define PIN_OTG_3   3 /* on Tegra210 */
+#define PIN_ULPI_0  4 /* on Tegra124 */
+#define PIN_HSIC_0  5
+#define PIN_HSIC_1  6
+#define PIN_PCIE_0  7
+#define PIN_PCIE_1  8
+#define PIN_PCIE_2  9
+#define PIN_PCIE_3 10
+#define PIN_PCIE_4 11
+#define PIN_PCIE_5 12 /* on Tegra210 */
+#define PIN_PCIE_6 13 /* on Tegra210 */
+#define PIN_SATA_0 14
 
 static inline bool lane_is_otg(unsigned int lane)
 {
-	return lane >= PIN_OTG_0 && lane <= PIN_OTG_2;
+	return lane >= PIN_OTG_0 && lane <= PIN_OTG_3;
 }
 
 static inline bool lane_is_hsic(unsigned int lane)
@@ -1015,21 +1062,21 @@ static int tegra_xusb_padctl_enable(struct tegra_xusb_padctl *padctl)
 	if (padctl->enable++ > 0)
 		goto out;
 
-	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM);
+	value = padctl_readl(padctl, padctl->soc->regs.elpg_program);
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM_AUX_MUX_LP0_CLAMP_EN;
-	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM);
+	padctl_writel(padctl, value, padctl->soc->regs.elpg_program);
 
 	usleep_range(100, 200);
 
-	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM);
+	value = padctl_readl(padctl, padctl->soc->regs.elpg_program);
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM_AUX_MUX_LP0_CLAMP_EN_EARLY;
-	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM);
+	padctl_writel(padctl, value, padctl->soc->regs.elpg_program);
 
 	usleep_range(100, 200);
 
-	value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM);
+	value = padctl_readl(padctl, padctl->soc->regs.elpg_program);
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM_AUX_MUX_LP0_VCORE_DOWN;
-	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM);
+	padctl_writel(padctl, value, padctl->soc->regs.elpg_program);
 
 out:
 	mutex_unlock(&padctl->lock);
@@ -1083,13 +1130,29 @@ static int tegra_xusb_phy_exit(struct phy *phy)
 	return tegra_xusb_padctl_disable(padctl);
 }
 
+static int pcie_phy_init(struct phy *phy)
+{
+	struct tegra_xusb_pcie_phy *pcie = phy_get_drvdata(phy);
+
+	return tegra_xusb_padctl_enable(pcie->padctl);
+}
+
+static int pcie_phy_exit(struct phy *phy)
+{
+	struct tegra_xusb_pcie_phy *pcie = phy_get_drvdata(phy);
+
+	return tegra_xusb_padctl_disable(pcie->padctl);
+}
+
 static int pcie_phy_power_on(struct phy *phy)
 {
-	struct tegra_xusb_padctl *padctl = phy_get_drvdata(phy);
+	struct tegra_xusb_pcie_phy *pcie = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = pcie->padctl;
 	unsigned long timeout;
 	int err = -ETIMEDOUT;
 	u32 value;
 
+#if 1
 	value = padctl_readl(padctl, XUSB_PADCTL_IOPHY_PLL_P0_CTL1);
 	value &= ~XUSB_PADCTL_IOPHY_PLL_P0_CTL1_REFCLK_SEL_MASK;
 	padctl_writel(padctl, value, XUSB_PADCTL_IOPHY_PLL_P0_CTL1);
@@ -1115,25 +1178,209 @@ static int pcie_phy_power_on(struct phy *phy)
 
 		usleep_range(100, 200);
 	}
+#else
+	if (pcie->reset)
+		reset_control_deassert(pcie->reset);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_CTRL_MASK;
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_CTRL(0x136);
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL5);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL5_DCO_CTRL_MASK;
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL5_DCO_CTRL(0x2a);
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL5);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL1_PWR_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL4);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_SEL_MASK;
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL4_REFCLK_SEL_MASK;
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_SEL(2);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL4_TXCLKREF_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL4);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_MDIV_MASK;
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_NDIV_MASK;
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL1_FREQ_NDIV(25);
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL1_IDDQ;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL1_SLEEP;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	usleep_range(10, 20);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL4);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL4_REFCLKBUF_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL4);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+
+	while (time_before(jiffies, timeout)) {
+		value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+		if (value & XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_DONE)
+			break;
+
+		usleep_range(10, 20);
+	}
+
+	if (time_after_eq(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+
+	while (time_before(jiffies, timeout)) {
+		value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+		if ((value & XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_DONE) == 0)
+			break;
+
+		usleep_range(10, 20);
+	}
+
+	if (time_after_eq(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL1_ENABLE;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+
+	while (time_before(jiffies, timeout)) {
+		value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+		if (value & XUSB_PADCTL_UPHY_PLL_P0_CTL1_LOCKDET_STATUS)
+			break;
+
+		usleep_range(10, 20);
+	}
+
+	if (time_after_eq(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_EN;
+	value |= XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_CLK_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+
+	while (time_before(jiffies, timeout)) {
+		value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+		if (value & XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_DONE)
+			break;
+
+		usleep_range(10, 20);
+	}
+
+	if (time_after_eq(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+
+	timeout = jiffies + msecs_to_jiffies(100);
+
+	while (time_before(jiffies, timeout)) {
+		value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+		if ((value & XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_DONE) == 0)
+			break;
+
+		usleep_range(10, 20);
+	}
+
+	if (time_after_eq(jiffies, timeout))
+		return -ETIMEDOUT;
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+	value &= XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_CLK_EN;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+
+	if (1) {
+		void __iomem *base = ioremap_nocache(0x60006000, SZ_4K);
+
+		value = readl(base + 0x51c);
+		value &= ~(1 << 2);
+		value &= ~(1 << 0);
+		value |= 1 << 6;
+		value |= 1 << 13;
+		writel(value, base + 0x51c);
+
+		iounmap(base);
+	}
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL1_PWR_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL1);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL2_CAL_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL2);
+
+	value = padctl_readl(padctl, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+	value &= ~XUSB_PADCTL_UPHY_PLL_P0_CTL8_RCAL_OVRD;
+	padctl_writel(padctl, value, XUSB_PADCTL_UPHY_PLL_P0_CTL8);
+
+	usleep_range(10, 20);
+
+	if (1) {
+		void __iomem *base = ioremap_nocache(0x60006000, SZ_4K);
+
+		value = readl(base + 0x51c);
+		value |= 1 << 24;
+		writel(value, base + 0x51c);
+
+		iounmap(base);
+	}
+#endif
 
 	return err;
 }
 
 static int pcie_phy_power_off(struct phy *phy)
 {
-	struct tegra_xusb_padctl *padctl = phy_get_drvdata(phy);
+	struct tegra_xusb_pcie_phy *pcie = phy_get_drvdata(phy);
+	struct tegra_xusb_padctl *padctl = pcie->padctl;
 	u32 value;
 
 	value = padctl_readl(padctl, XUSB_PADCTL_IOPHY_PLL_P0_CTL1);
 	value &= ~XUSB_PADCTL_IOPHY_PLL_P0_CTL1_PLL_RST;
 	padctl_writel(padctl, value, XUSB_PADCTL_IOPHY_PLL_P0_CTL1);
 
+	if (pcie->reset)
+		reset_control_assert(pcie->reset);
+
 	return 0;
 }
 
 static const struct phy_ops pcie_phy_ops = {
-	.init = tegra_xusb_phy_init,
-	.exit = tegra_xusb_phy_exit,
+	.init = pcie_phy_init,
+	.exit = pcie_phy_exit,
 	.power_on = pcie_phy_power_on,
 	.power_off = pcie_phy_power_off,
 	.owner = THIS_MODULE,
@@ -1940,9 +2187,205 @@ static const struct tegra_xusb_padctl_soc tegra124_soc = {
 	.hs_discon_level = 0x5,
 	.spare_in = 0x1,
 	.hsic_port_offset = 6,
+	.regs = {
+		.elpg_program = 0x01c,
+	},
+};
+
+static const struct pinctrl_pin_desc tegra210_pins[] = {
+	PINCTRL_PIN(PIN_OTG_0,  "otg-0"),
+	PINCTRL_PIN(PIN_OTG_1,  "otg-1"),
+	PINCTRL_PIN(PIN_OTG_2,  "otg-2"),
+	PINCTRL_PIN(PIN_OTG_3,  "otg-3"),
+	PINCTRL_PIN(PIN_HSIC_0, "hsic-0"),
+	PINCTRL_PIN(PIN_HSIC_1, "hsic-1"),
+	PINCTRL_PIN(PIN_PCIE_0, "pcie-0"),
+	PINCTRL_PIN(PIN_PCIE_1, "pcie-1"),
+	PINCTRL_PIN(PIN_PCIE_2, "pcie-2"),
+	PINCTRL_PIN(PIN_PCIE_3, "pcie-3"),
+	PINCTRL_PIN(PIN_PCIE_4, "pcie-4"),
+	PINCTRL_PIN(PIN_PCIE_5, "pcie-5"),
+	PINCTRL_PIN(PIN_PCIE_6, "pcie-6"),
+	PINCTRL_PIN(PIN_SATA_0, "sata-0"),
+};
+
+static const char * const tegra210_snps_groups[] = {
+	"otg-0",
+	"otg-1",
+	"otg-2",
+	"otg-3",
+	"hsic-0",
+	"hsic-1",
+};
+
+static const char * const tegra210_xusb_groups[] = {
+	"otg-0",
+	"otg-1",
+	"otg-2",
+	"otg-3",
+	"hsic-0",
+	"hsic-1",
+};
+
+static const char * const tegra210_uart_groups[] = {
+	"otg-0",
+	"otg-1",
+	"otg-2",
+	"otg-3",
+};
+
+static const char * const tegra210_pciex1_groups[] = {
+	"pcie-0",
+	"pcie-1",
+	"pcie-2",
+	"pcie-3",
+	"pcie-4",
+	"pcie-5",
+	"pcie-6",
+	"sata-0",
+};
+
+static const char * const tegra210_pciex4_groups[] = {
+	"pcie-0",
+	"pcie-1",
+	"pcie-2",
+	"pcie-3",
+	"pcie-4",
+	"pcie-5",
+	"pcie-6",
+	"sata-0",
+};
+
+static const char * const tegra210_usb3_groups[] = {
+	"pcie-0",
+	"pcie-1",
+	"pcie-2",
+	"pcie-3",
+	"pcie-4",
+	"pcie-5",
+	"pcie-6",
+	"sata-0",
+};
+
+static const char * const tegra210_sata_groups[] = {
+	"pcie-0",
+	"pcie-1",
+	"pcie-2",
+	"pcie-3",
+	"pcie-4",
+	"pcie-5",
+	"pcie-6",
+	"sata-0",
+};
+
+static const char * const tegra210_rsvd_groups[] = {
+	"otg-0",
+	"otg-1",
+	"otg-2",
+	"otg-3",
+	"hsic-0",
+	"hsic-1",
+};
+
+#define TEGRA210_FUNCTION(_name)					\
+	{								\
+		.name = #_name,						\
+		.num_groups = ARRAY_SIZE(tegra210_##_name##_groups),	\
+		.groups = tegra210_##_name##_groups,			\
+	}
+
+static struct tegra_xusb_padctl_function tegra210_functions[] = {
+	TEGRA210_FUNCTION(snps),
+	TEGRA210_FUNCTION(xusb),
+	TEGRA210_FUNCTION(uart),
+	TEGRA210_FUNCTION(pciex1),
+	TEGRA210_FUNCTION(pciex4),
+	TEGRA210_FUNCTION(usb3),
+	TEGRA210_FUNCTION(sata),
+	TEGRA210_FUNCTION(rsvd),
+};
+
+enum tegra210_function {
+	TEGRA210_FUNC_SNPS,
+	TEGRA210_FUNC_XUSB,
+	TEGRA210_FUNC_UART,
+	TEGRA210_FUNC_PCIE_X1,
+	TEGRA210_FUNC_PCIE_X4,
+	TEGRA210_FUNC_USB3,
+	TEGRA210_FUNC_SATA,
+	TEGRA210_FUNC_RSVD,
+};
+
+static const unsigned int tegra210_otg_functions[] = {
+	TEGRA210_FUNC_SNPS,
+	TEGRA210_FUNC_XUSB,
+	TEGRA210_FUNC_UART,
+	TEGRA210_FUNC_RSVD,
+};
+
+static const unsigned int tegra210_usb_functions[] = {
+	TEGRA210_FUNC_SNPS,
+	TEGRA210_FUNC_XUSB,
+};
+
+static const unsigned int tegra210_pci_functions[] = {
+	TEGRA210_FUNC_PCIE_X1,
+	TEGRA210_FUNC_USB3,
+	TEGRA210_FUNC_SATA,
+	TEGRA210_FUNC_PCIE_X4,
+};
+
+#define TEGRA210_LANE(_name, _offset, _shift, _mask, _iddq, _funcs)	\
+	{								\
+		.name = _name,						\
+		.offset = _offset,					\
+		.shift = _shift,					\
+		.mask = _mask,						\
+		.iddq = _iddq,						\
+		.num_funcs = ARRAY_SIZE(tegra210_##_funcs##_functions),	\
+		.funcs = tegra210_##_funcs##_functions,			\
+	}
+
+static const struct tegra_xusb_padctl_lane tegra210_lanes[] = {
+	TEGRA210_LANE("otg-0",  0x004,  0, 0x3, 0, otg),
+	TEGRA210_LANE("otg-1",  0x004,  2, 0x3, 0, otg),
+	TEGRA210_LANE("otg-2",  0x004,  4, 0x3, 0, otg),
+	TEGRA210_LANE("otg-3",  0x004,  6, 0x3, 0, otg),
+	TEGRA210_LANE("hsic-0", 0x004, 14, 0x1, 0, usb),
+	TEGRA210_LANE("hsic-1", 0x004, 15, 0x1, 0, usb),
+	TEGRA210_LANE("pcie-0", 0x028, 12, 0x3, 1, pci),
+	TEGRA210_LANE("pcie-1", 0x028, 14, 0x3, 2, pci),
+	TEGRA210_LANE("pcie-2", 0x028, 16, 0x3, 3, pci),
+	TEGRA210_LANE("pcie-3", 0x028, 18, 0x3, 4, pci),
+	TEGRA210_LANE("pcie-4", 0x028, 20, 0x3, 5, pci),
+	TEGRA210_LANE("pcie-5", 0x028, 22, 0x3, 6, pci),
+	TEGRA210_LANE("pcie-6", 0x028, 24, 0x3, 7, pci),
+	TEGRA210_LANE("sata-0", 0x028, 30, 0x3, 8, pci),
+};
+
+static const struct tegra_xusb_padctl_soc tegra210_soc = {
+	.num_pins = ARRAY_SIZE(tegra210_pins),
+	.pins = tegra210_pins,
+	.num_functions = ARRAY_SIZE(tegra210_functions),
+	.functions = tegra210_functions,
+	.num_lanes = ARRAY_SIZE(tegra210_lanes),
+	.lanes = tegra210_lanes,
+	.rx_wander = 0xf,
+	.rx_eq = 0xf070,
+	.cdr_cntl = 0x24,
+	.dfe_cntl = 0x002008ee,
+	.hs_slew = 0xe,
+	.ls_rslew = {0x3, 0x0, 0x0},
+	.hs_discon_level = 0x5,
+	.spare_in = 0x1,
+	.hsic_port_offset = 6,
+	.regs = {
+		.elpg_program = 0x024,
+	},
 };
 
 static const struct of_device_id tegra_xusb_padctl_of_match[] = {
+	{ .compatible = "nvidia,tegra210-xusb-padctl", .data = &tegra210_soc },
 	{ .compatible = "nvidia,tegra124-xusb-padctl", .data = &tegra124_soc },
 	{ }
 };
@@ -2106,6 +2549,44 @@ static struct phy *tegra_xusb_usb3_phy_create(struct tegra_xusb_padctl *padctl,
 	return phy;
 }
 
+static struct phy *tegra_xusb_pcie_phy_create(struct tegra_xusb_padctl *padctl)
+{
+	struct tegra_xusb_pcie_phy *pcie;
+	struct device_node *np;
+	struct phy *phy;
+
+	np = tegra_xusb_padctl_find_phy_node(padctl, "pcie", 0);
+	dev_info(padctl->dev, "np: %p (%s)\n", np, np ? np->full_name : NULL);
+	if (!np || !of_device_is_available(np)) {
+		dev_info(padctl->dev, "PCIe PHY disabled\n");
+		return NULL;
+	}
+
+	phy = devm_phy_create(padctl->dev, np, &pcie_phy_ops);
+	if (IS_ERR(phy))
+		return ERR_CAST(phy);
+
+	pcie = devm_kzalloc(&phy->dev, sizeof(*pcie), GFP_KERNEL);
+	if (!pcie)
+		return ERR_PTR(-ENOMEM);
+
+	phy_set_drvdata(phy, pcie);
+	pcie->padctl = padctl;
+
+	pcie->reset = devm_reset_control_get(&phy->dev, "pcie-phy");
+	if (IS_ERR(pcie->reset)) {
+		if (PTR_ERR(pcie->reset) == -EPROBE_DEFER)
+			return ERR_CAST(pcie->reset);
+
+		dev_info(&phy->dev,
+			 "couldn't get pcie-phy reset control: %ld\n",
+			 PTR_ERR(pcie->reset));
+		pcie->reset = NULL;
+	}
+
+	return phy;
+}
+
 static struct phy *tegra_xusb_utmi_phy_create(struct tegra_xusb_padctl *padctl,
 					      unsigned int index)
 {
@@ -2202,12 +2683,17 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		return PTR_ERR(padctl->regs);
 
 	err = tegra_xusb_read_fuse_calibration(padctl);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to read fuse calibration: %d\n",
+			err);
 		return err;
+	}
 
 	padctl->rst = devm_reset_control_get(&pdev->dev, NULL);
-	if (IS_ERR(padctl->rst))
+	if (IS_ERR(padctl->rst)) {
+		dev_err(&pdev->dev, "failed to get reset: %ld\n", PTR_ERR(padctl->rst));
 		return PTR_ERR(padctl->rst);
+	}
 
 	err = reset_control_deassert(padctl->rst);
 	if (err < 0)
@@ -2229,14 +2715,15 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		goto reset;
 	}
 
-	phy = devm_phy_create(&pdev->dev, NULL, &pcie_phy_ops);
+	phy = tegra_xusb_pcie_phy_create(padctl);
 	if (IS_ERR(phy)) {
+		dev_err(&pdev->dev, "failed to create PCIe PHY: %ld\n",
+			PTR_ERR(phy));
 		err = PTR_ERR(phy);
 		goto unregister;
 	}
 
 	padctl->phys[TEGRA_XUSB_PADCTL_PCIE] = phy;
-	phy_set_drvdata(phy, padctl);
 
 	phy = devm_phy_create(&pdev->dev, NULL, &sata_phy_ops);
 	if (IS_ERR(phy)) {
@@ -2256,6 +2743,7 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 	if (IS_ERR(padctl->mbox_chan)) {
 		err = PTR_ERR(padctl->mbox_chan);
 		if (err == -EPROBE_DEFER) {
+			dev_warn(&pdev->dev, "mailbox not ready\n");
 			goto unregister;
 		} else {
 			dev_warn(&pdev->dev,
@@ -2263,8 +2751,10 @@ static int tegra_xusb_padctl_probe(struct platform_device *pdev)
 		}
 	} else {
 		err = tegra_xusb_setup_usb(padctl);
-		if (err)
+		if (err) {
+			dev_err(&pdev->dev, "failed to setup USB: %d\n", err);
 			goto unregister;
+		}
 	}
 
 	padctl->provider = devm_of_phy_provider_register(&pdev->dev,
