@@ -170,6 +170,7 @@ enum clk_id {
 	tegra_clk_pll_p_out1,
 	tegra_clk_pll_p_out2,
 	tegra_clk_pll_p_out2_int,
+	tegra_clk_pll_p_out2_div2,
 	tegra_clk_pll_p_out3,
 	tegra_clk_pll_p_out4,
 	tegra_clk_pll_p_out5,

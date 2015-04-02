@@ -72,6 +72,11 @@ static unsigned long clk_frac_div_recalc_rate(struct clk_hw *hw,
 	int div, mul;
 	u64 rate = parent_rate;
 
+	if (divider->flags & TEGRA_DIVIDER_FIXED_DIV2) {
+		do_div(rate, 2);
+		return rate;
+	}
+
 	reg = readl_relaxed(divider->reg) >> divider->shift;
 	div = reg & div_mask(divider);
 
@@ -111,6 +116,9 @@ static int clk_frac_div_set_rate(struct clk_hw *hw, unsigned long rate,
 	int div;
 	unsigned long flags = 0;
 	u32 val;
+
+	if (divider->flags & TEGRA_DIVIDER_FIXED_DIV2)
+		return 0;
 
 	div = get_div(divider, rate, parent_rate);
 	if (div < 0)

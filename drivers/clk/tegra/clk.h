@@ -80,6 +80,7 @@ struct tegra_clk_frac_div {
 #define TEGRA_DIVIDER_FIXED BIT(1)
 #define TEGRA_DIVIDER_INT BIT(2)
 #define TEGRA_DIVIDER_UART BIT(3)
+#define TEGRA_DIVIDER_FIXED_DIV2 BIT(4)
 
 extern const struct clk_ops tegra_clk_frac_div_ops;
 struct clk *tegra_clk_register_divider(const char *name,

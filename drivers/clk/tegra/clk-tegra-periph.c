@@ -829,6 +829,7 @@ static struct pll_out_data pllp_out_clks[] = {
 	PLL_OUT(1, PLLP_OUTA, 8, 0, 0, pll_p_out1),
 	PLL_OUT(2, PLLP_OUTA, 24, 0, 16, pll_p_out2),
 	PLL_OUT(2, PLLP_OUTA, 24, TEGRA_DIVIDER_INT, 16, pll_p_out2_int),
+	PLL_OUT(2, PLLP_OUTA, 24, TEGRA_DIVIDER_FIXED_DIV2, 16, pll_p_out2_div2),
 	PLL_OUT(3, PLLP_OUTB, 8, 0, 0, pll_p_out3),
 	PLL_OUT(4, PLLP_OUTB, 24, 0, 16, pll_p_out4),
 	PLL_OUT(5, PLLP_OUTC, 24, 0, 16, pll_p_out5),

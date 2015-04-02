@@ -2076,7 +2076,7 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_pll_m_out1] = { .dt_id = TEGRA210_CLK_PLL_M_OUT1, .present = true },
 	[tegra_clk_pll_p] = { .dt_id = TEGRA210_CLK_PLL_P, .present = true },
 	[tegra_clk_pll_p_out1] = { .dt_id = TEGRA210_CLK_PLL_P_OUT1, .present = true },
-	[tegra_clk_pll_p_out2] = { .dt_id = TEGRA210_CLK_PLL_P_OUT2, .present = true },
+	[tegra_clk_pll_p_out2_div2] = { .dt_id = TEGRA210_CLK_PLL_P_OUT2, .present = true },
 	[tegra_clk_pll_p_out3] = { .dt_id = TEGRA210_CLK_PLL_P_OUT3, .present = true },
 	[tegra_clk_pll_p_out4] = { .dt_id = TEGRA210_CLK_PLL_P_OUT4, .present = true },
 	[tegra_clk_pll_a] = { .dt_id = TEGRA210_CLK_PLL_A, .present = true },
