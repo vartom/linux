@@ -2048,7 +2048,7 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_xusb_ss] = { .dt_id = TEGRA210_CLK_XUSB_SS, .present = true },
 	[tegra_clk_i2c6] = { .dt_id = TEGRA210_CLK_I2C6, .present = true },
 	[tegra_clk_vim2_clk] = { .dt_id = TEGRA210_CLK_VIM2_CLK, .present = true },
-	[tegra_clk_clk72Mhz] = { .dt_id = TEGRA210_CLK_CLK72MHZ, .present = true },
+	[tegra_clk_clk72Mhz_8] = { .dt_id = TEGRA210_CLK_CLK72MHZ, .present = true },
 	[tegra_clk_vic03_8] = { .dt_id = TEGRA210_CLK_VIC03, .present = true },
 	[tegra_clk_dpaux] = { .dt_id = TEGRA210_CLK_DPAUX, .present = true },
 	[tegra_clk_sor0] = { .dt_id = TEGRA210_CLK_SOR0, .present = true },
