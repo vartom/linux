@@ -26,7 +26,7 @@
 #include <drm/drm_encoder_slave.h>
 #include <drm/bridge/dw_hdmi.h>
 
-#include "dw_hdmi.h"
+#include "dw-hdmi.h"
 
 #define HDMI_EDID_LEN		512
 
