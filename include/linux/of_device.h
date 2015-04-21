@@ -107,4 +107,9 @@ static inline int of_device_match(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static inline int of_parent_match(struct device *dev, void *data)
+{
+	return dev->parent && dev->parent->of_node == data;
+}
+
 #endif /* _LINUX_OF_DEVICE_H */

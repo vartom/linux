@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
+#include <linux/of_device.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_PMAC_BACKLIGHT
@@ -538,11 +539,6 @@ void devm_backlight_device_unregister(struct device *dev,
 EXPORT_SYMBOL(devm_backlight_device_unregister);
 
 #ifdef CONFIG_OF
-static int of_parent_match(struct device *dev, const void *data)
-{
-	return dev->parent && dev->parent->of_node == data;
-}
-
 /**
  * of_find_backlight_by_node() - find backlight device by device-tree node
  * @node: device-tree node of the backlight device
