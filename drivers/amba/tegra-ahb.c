@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <soc/tegra/ahb.h>
 
@@ -143,14 +144,6 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 }
 
 #ifdef CONFIG_TEGRA_IOMMU_SMMU
-static int tegra_ahb_match_by_smmu(struct device *dev, void *data)
-{
-	struct tegra_ahb *ahb = dev_get_drvdata(dev);
-	struct device_node *dn = data;
-
-	return (ahb->dev->of_node == dn) ? 1 : 0;
-}
-
 int tegra_ahb_enable_smmu(struct device_node *dn)
 {
 	struct device *dev;
@@ -158,7 +151,7 @@ int tegra_ahb_enable_smmu(struct device_node *dn)
 	struct tegra_ahb *ahb;
 
 	dev = driver_find_device(&tegra_ahb_driver.driver, NULL, dn,
-				 tegra_ahb_match_by_smmu);
+				 of_device_match);
 	if (!dev)
 		return -EPROBE_DEFER;
 	ahb = dev_get_drvdata(dev);
