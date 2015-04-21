@@ -980,6 +980,11 @@ extern int device_online(struct device *dev);
 extern void set_primary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 extern void set_secondary_fwnode(struct device *dev, struct fwnode_handle *fwnode);
 
+static inline int device_match_always(struct device *device, void *data)
+{
+	return 1;
+}
+
 /*
  * Root device objects for grouping under /sys/devices
  */
