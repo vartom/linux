@@ -7,14 +7,14 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
 #include <linux/backlight.h>
-#include <linux/notifier.h>
 #include <linux/ctype.h>
+#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/fb.h>
+#include <linux/init.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/slab.h>
 
 #ifdef CONFIG_PMAC_BACKLIGHT
