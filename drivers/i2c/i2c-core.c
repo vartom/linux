@@ -1324,18 +1324,12 @@ static void of_i2c_register_devices(struct i2c_adapter *adap)
 		of_i2c_register_device(adap, node);
 }
 
-static int of_dev_node_match(struct device *dev, void *data)
-{
-	return dev->of_node == data;
-}
-
 /* must call put_device() when done with returned i2c_client device */
 struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_device_match);
 	if (!dev)
 		return NULL;
 
@@ -1348,8 +1342,7 @@ struct i2c_adapter *of_find_i2c_adapter_by_node(struct device_node *node)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, node,
-					 of_dev_node_match);
+	dev = bus_find_device(&i2c_bus_type, NULL, node, of_device_match);
 	if (!dev)
 		return NULL;
 
