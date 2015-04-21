@@ -133,12 +133,6 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 }
 
 static struct platform_driver cpsw_phy_sel_driver;
-static int match(struct device *dev, void *data)
-{
-	struct device_node *node = (struct device_node *)data;
-	return dev->of_node == node &&
-		dev->driver == &cpsw_phy_sel_driver.driver;
-}
 
 void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 {
@@ -151,7 +145,8 @@ void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 		return;
 	}
 
-	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	dev = driver_find_device(&cpsw_phy_sel_driver.driver, NULL, node,
+				 of_device_match);
 	priv = dev_get_drvdata(dev);
 
 	priv->cpsw_phy_sel(priv, phy_mode, slave);
