@@ -59,11 +59,6 @@ static struct resource *get_pci_domain_busn_res(int domain_nr)
 	return &r->res;
 }
 
-static int find_anything(struct device *dev, void *data)
-{
-	return 1;
-}
-
 /*
  * Some device drivers need know if pci is initiated.
  * Basically, we think pci is not initiated when there
@@ -74,7 +69,7 @@ int no_pci_devices(void)
 	struct device *dev;
 	int no_devices;
 
-	dev = bus_find_device(&pci_bus_type, NULL, NULL, find_anything);
+	dev = bus_find_device(&pci_bus_type, NULL, NULL, device_match_always);
 	no_devices = (dev == NULL);
 	put_device(dev);
 	return no_devices;
