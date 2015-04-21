@@ -109,12 +109,6 @@ static const struct of_device_id omap_control_usb_id_table[] = {
 MODULE_DEVICE_TABLE(of, omap_control_usb_id_table);
 
 static struct platform_driver am335x_control_driver;
-static int match(struct device *dev, void *data)
-{
-	struct device_node *node = (struct device_node *)data;
-	return dev->of_node == node &&
-		dev->driver == &am335x_control_driver.driver;
-}
 
 struct phy_control *am335x_get_phy_control(struct device *dev)
 {
@@ -125,7 +119,8 @@ struct phy_control *am335x_get_phy_control(struct device *dev)
 	if (!node)
 		return NULL;
 
-	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	dev = driver_find_device(&am335x_control_driver.driver, NULL, node,
+				 of_device_match);
 	if (!dev)
 		return NULL;
 
