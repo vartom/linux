@@ -2,6 +2,25 @@
 	model = "NVIDIA Tegra210 P2595 I/O board";
 	compatible = "nvidia,p2595", "nvidia,tegra210";
 
+	host1x@50000000 {
+		dpaux@54040000 {
+			status = "okay";
+		};
+
+		sor@54580000 {
+			status = "okay";
+
+			avdd-io-supply = <&avdd_1v05>;
+			vdd-pll-supply = <&vdd_1v8>;
+			hdmi-supply = <&vdd_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio TEGRA_GPIO(CC, 1)
+					   GPIO_ACTIVE_LOW>;
+			nvidia,kfuse = <&kfuse>;
+		};
+	};
+
 	pinmux: pinmux@700008d4 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
