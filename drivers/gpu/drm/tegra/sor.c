@@ -172,6 +172,7 @@ struct tegra_sor {
 
 	const struct tegra_sor_soc *soc;
 	void __iomem *regs;
+	unsigned int irq;
 
 	struct reset_control *rst;
 	struct clk *clk_parent;
@@ -2719,6 +2720,16 @@ static const struct tegra_sor_ops tegra_sor_hdmi_ops = {
 	.remove = tegra_sor_hdmi_remove,
 };
 
+static irqreturn_t tegra_sor_irq(int irq, void *data)
+{
+	struct tegra_sor *sor = data;
+
+	dev_info(sor->dev, "> %s(irq=%d, data=%p)\n", __func__, irq, data);
+	dev_info(sor->dev, "< %s()\n", __func__);
+
+	return IRQ_HANDLED;
+}
+
 static const u8 tegra124_sor_xbar_cfg[5] = {
 	0, 1, 2, 3, 4
 };
@@ -2861,6 +2872,14 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto hdcp;
 	}
 
+	err = platform_get_irq(pdev, 0);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to get IRQ: %d\n", err);
+		goto hdcp;
+	}
+
+	sor->irq = err;
+
 	if (!pdev->dev.pm_domain) {
 		sor->rst = devm_reset_control_get(&pdev->dev, "sor");
 		if (IS_ERR(sor->rst)) {
@@ -2919,6 +2938,14 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	if (IS_ERR(sor->clk_brick)) {
 		err = PTR_ERR(sor->clk_brick);
 		dev_err(&pdev->dev, "failed to register SOR clock: %d\n", err);
+		goto hdcp;
+	}
+
+	err = devm_request_irq(&pdev->dev, sor->irq, tegra_sor_irq, 0,
+			       dev_name(&pdev->dev), sor);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n",
+			sor->irq, err);
 		goto hdcp;
 	}
 
