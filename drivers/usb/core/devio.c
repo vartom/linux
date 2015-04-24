@@ -852,7 +852,7 @@ error:
 	return ret;
 }
 
-static int match_devt(struct device *dev, void *data)
+static int match_devt(struct device *dev, const void *data)
 {
 	return dev->devt == (dev_t) (unsigned long) data;
 }
