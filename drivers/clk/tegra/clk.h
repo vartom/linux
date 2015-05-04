@@ -229,6 +229,8 @@ struct tegra_clk_pll_params {
 	u32		lock_enable_bit_idx;
 	u32		iddq_reg;
 	u32		iddq_bit_idx;
+	u32		reset_reg;
+	u32		reset_bit_idx;
 	u32		sdm_din_reg;
 	u32		sdm_din_mask;
 	u32		sdm_ctrl_reg;
