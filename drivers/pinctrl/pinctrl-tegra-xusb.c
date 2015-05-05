@@ -2578,7 +2578,7 @@ static struct phy *tegra_xusb_pcie_phy_create(struct tegra_xusb_padctl *padctl)
 		if (PTR_ERR(pcie->reset) == -EPROBE_DEFER)
 			return ERR_CAST(pcie->reset);
 
-		dev_info(&phy->dev,
+		dev_warn(&phy->dev,
 			 "couldn't get pcie-phy reset control: %ld\n",
 			 PTR_ERR(pcie->reset));
 		pcie->reset = NULL;
