@@ -968,7 +968,7 @@ static int _pll_ramp_calc_pll(struct clk_hw *hw,
 			cfg->p = p_div;
 	}
 
-	if (cfg->p >  pll->params->max_p)
+	if (cfg->p > pll->params->max_p)
 		err = -EINVAL;
 
 out:
