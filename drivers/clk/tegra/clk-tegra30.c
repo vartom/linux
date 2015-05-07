@@ -1207,8 +1207,6 @@ static void tegra30_wait_cpu_in_reset(u32 cpu)
 			    TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
 		cpu_relax();
 	} while (!(reg & (1 << cpu)));	/* check CPU been reset or not */
-
-	return;
 }
 
 static void tegra30_put_cpu_in_reset(u32 cpu)

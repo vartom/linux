@@ -239,13 +239,13 @@ static DEFINE_SPINLOCK(sor0_lock);
 #define MUX_I2S_SPDIF(_id)						\
 static const char *mux_pllaout0_##_id##_2x_pllp_clkm[] = { "pll_a_out0", \
 							   #_id, "pll_p",\
-							   "clk_m"};
-MUX_I2S_SPDIF(audio0)
-MUX_I2S_SPDIF(audio1)
-MUX_I2S_SPDIF(audio2)
-MUX_I2S_SPDIF(audio3)
-MUX_I2S_SPDIF(audio4)
-MUX_I2S_SPDIF(audio)
+							   "clk_m"}
+MUX_I2S_SPDIF(audio0);
+MUX_I2S_SPDIF(audio1);
+MUX_I2S_SPDIF(audio2);
+MUX_I2S_SPDIF(audio3);
+MUX_I2S_SPDIF(audio4);
+MUX_I2S_SPDIF(audio);
 
 #define mux_pllaout0_audio0_2x_pllp_clkm_idx NULL
 #define mux_pllaout0_audio1_2x_pllp_clkm_idx NULL

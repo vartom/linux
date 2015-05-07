@@ -199,9 +199,9 @@
 #define divp_mask(p) (p->params->flags & TEGRA_PLLU ? PLLU_POST_DIVP_MASK :\
 		      mask(p->params->div_nmp->divp_width))
 
-#define divm_shift(p) (p)->params->div_nmp->divm_shift
-#define divn_shift(p) (p)->params->div_nmp->divn_shift
-#define divp_shift(p) (p)->params->div_nmp->divp_shift
+#define divm_shift(p) ((p)->params->div_nmp->divm_shift)
+#define divn_shift(p) ((p)->params->div_nmp->divn_shift)
+#define divp_shift(p) ((p)->params->div_nmp->divp_shift)
 
 #define divm_mask_shifted(p) (divm_mask(p) << divm_shift(p))
 #define divn_mask_shifted(p) (divn_mask(p) << divn_shift(p))
@@ -468,8 +468,8 @@ static int _calc_rate(struct clk_hw *hw, struct tegra_clk_pll_freq_table *cfg,
 		ret = _p_div_to_hw(hw, 1 << p_div);
 		if (ret < 0)
 			return ret;
-		else
-			cfg->p = ret;
+
+		cfg->p = ret;
 	} else
 		cfg->p = p_div;
 
@@ -660,6 +660,7 @@ static unsigned long clk_pll_recalc_rate(struct clk_hw *hw,
 	if ((pll->params->flags & TEGRA_PLL_FIXED) &&
 			!(val & PLL_BASE_OVERRIDE)) {
 		struct tegra_clk_pll_freq_table sel;
+
 		if (_get_table_rate(hw, &sel, pll->params->fixed_rate,
 					parent_rate)) {
 			pr_err("Clock %s has unknown fixed frequency\n",
@@ -691,7 +692,7 @@ static int clk_plle_training(struct tegra_clk_pll *pll)
 	unsigned long timeout;
 
 	if (!pll->pmc)
-		return -ENOSYS;
+		return -ENXIO;
 
 	/*
 	 * PLLE is already disabled, and setup cleared;
@@ -936,8 +937,8 @@ static int _calc_dynamic_ramp_rate(struct clk_hw *hw,
 	p_div = _p_div_to_hw(hw, p);
 	if (p_div < 0)
 		return p_div;
-	else
-		cfg->p = p_div;
+
+	cfg->p = p_div;
 
 	if (cfg->n > divn_max(pll) || cfg->output_rate > pll->params->vco_max)
 		return -EINVAL;
@@ -964,8 +965,8 @@ static int _pll_ramp_calc_pll(struct clk_hw *hw,
 		p_div = _p_div_to_hw(hw, cfg->p);
 		if (p_div < 0)
 			return p_div;
-		else
-			cfg->p = p_div;
+
+		cfg->p = p_div;
 	}
 
 	if (cfg->p > pll->params->max_p)
