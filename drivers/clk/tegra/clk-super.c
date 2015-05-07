@@ -137,10 +137,8 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 	struct clk_init_data init;
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
-	if (!super) {
-		pr_err("%s: could not allocate super clk\n", __func__);
+	if (!super)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &tegra_clk_super_ops;
