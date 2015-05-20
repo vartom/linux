@@ -112,6 +112,8 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	ssize_t ret = 0;
 	u32 value;
 
+	dev_dbg(dpaux->dev, "> %s(aux=%p, msg=%p)\n", __func__, aux, msg);
+
 	/* Tegra has 4x4 byte DP AUX transmit and receive FIFOs. */
 	if (msg->size > 16)
 		return -EINVAL;
@@ -137,6 +139,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_I2C_WRITE:
+		dev_dbg(dpaux->dev, "  I2C write\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_WR;
 		else
@@ -145,6 +148,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_I2C_READ:
+		dev_dbg(dpaux->dev, "  I2C read\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_RD;
 		else
@@ -153,6 +157,7 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_I2C_STATUS:
+		dev_dbg(dpaux->dev, "  I2C status request\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_RQ;
 		else
@@ -161,10 +166,12 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_NATIVE_WRITE:
+		dev_dbg(dpaux->dev, "  native write\n");
 		value |= DPAUX_DP_AUXCTL_CMD_AUX_WR;
 		break;
 
 	case DP_AUX_NATIVE_READ:
+		dev_dbg(dpaux->dev, "  native read\n");
 		value |= DPAUX_DP_AUXCTL_CMD_AUX_RD;
 		break;
 
@@ -186,15 +193,19 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	tegra_dpaux_writel(dpaux, value, DPAUX_DP_AUXCTL);
 
 	status = wait_for_completion_timeout(&dpaux->complete, timeout);
-	if (!status)
+	if (!status) {
+		dev_dbg(dpaux->dev, "timeout waiting for completion\n");
 		return -ETIMEDOUT;
+	}
 
 	/* read status and clear errors */
 	value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXSTAT);
 	tegra_dpaux_writel(dpaux, 0xf00, DPAUX_DP_AUXSTAT);
 
-	if (value & DPAUX_DP_AUXSTAT_TIMEOUT_ERROR)
+	if (value & DPAUX_DP_AUXSTAT_TIMEOUT_ERROR) {
+		dev_dbg(dpaux->dev, "timeout error\n");
 		return -ETIMEDOUT;
+	}
 
 	if ((value & DPAUX_DP_AUXSTAT_RX_ERROR) ||
 	    (value & DPAUX_DP_AUXSTAT_SINKSTAT_ERROR) ||
