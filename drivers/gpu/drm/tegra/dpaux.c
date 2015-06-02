@@ -59,12 +59,15 @@ static inline struct tegra_dpaux *work_to_dpaux(struct work_struct *work)
 static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux,
 				    unsigned long offset)
 {
-	return readl(dpaux->regs + (offset << 2));
+	u32 value = readl(dpaux->regs + (offset << 2));
+	//dev_info(dpaux->dev, "%08lx > %08x\n", offset, value);
+	return value;
 }
 
 static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
 				      u32 value, unsigned long offset)
 {
+	//dev_info(dpaux->dev, "%08lx < %08x\n", offset, value);
 	writel(value, dpaux->regs + (offset << 2));
 }
 
@@ -88,17 +91,16 @@ static void tegra_dpaux_write_fifo(struct tegra_dpaux *dpaux, const u8 *buffer,
 static void tegra_dpaux_read_fifo(struct tegra_dpaux *dpaux, u8 *buffer,
 				  size_t size)
 {
-	unsigned long offset = DPAUX_DP_AUXDATA_READ(0);
 	size_t i, j;
 
-	for (i = 0; i < size; i += 4) {
-		size_t num = min_t(size_t, size - i, 4);
+	for (i = 0; i < DIV_ROUND_UP(size, 4); i++) {
+		size_t num = min_t(size_t, size - i * 4, 4);
 		u32 value;
 
 		value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXDATA_READ(i));
 
 		for (j = 0; j < num; j++)
-			buffer[i + j] = value >> (j * 8);
+			buffer[i * 4 + j] = value >> (j * 8);
 	}
 }
 
@@ -110,8 +112,6 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	unsigned long status;
 	ssize_t ret = 0;
 	u32 value;
-
-	dev_dbg(dpaux->dev, "> %s(aux=%p, msg=%p)\n", __func__, aux, msg);
 
 	/* Tegra has 4x4 byte DP AUX transmit and receive FIFOs. */
 	if (msg->size > 16)
@@ -138,7 +138,6 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_I2C_WRITE:
-		dev_dbg(dpaux->dev, "  I2C write\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_WR;
 		else
@@ -147,7 +146,6 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_I2C_READ:
-		dev_dbg(dpaux->dev, "  I2C read\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_RD;
 		else
@@ -156,7 +154,6 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_I2C_STATUS:
-		dev_dbg(dpaux->dev, "  I2C status request\n");
 		if (msg->request & DP_AUX_I2C_MOT)
 			value |= DPAUX_DP_AUXCTL_CMD_MOT_RQ;
 		else
@@ -165,12 +162,10 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 		break;
 
 	case DP_AUX_NATIVE_WRITE:
-		dev_dbg(dpaux->dev, "  native write\n");
 		value |= DPAUX_DP_AUXCTL_CMD_AUX_WR;
 		break;
 
 	case DP_AUX_NATIVE_READ:
-		dev_dbg(dpaux->dev, "  native read\n");
 		value |= DPAUX_DP_AUXCTL_CMD_AUX_RD;
 		break;
 
@@ -192,19 +187,15 @@ static ssize_t tegra_dpaux_transfer(struct drm_dp_aux *aux,
 	tegra_dpaux_writel(dpaux, value, DPAUX_DP_AUXCTL);
 
 	status = wait_for_completion_timeout(&dpaux->complete, timeout);
-	if (!status) {
-		dev_dbg(dpaux->dev, "timeout waiting for completion\n");
+	if (!status)
 		return -ETIMEDOUT;
-	}
 
 	/* read status and clear errors */
 	value = tegra_dpaux_readl(dpaux, DPAUX_DP_AUXSTAT);
 	tegra_dpaux_writel(dpaux, 0xf00, DPAUX_DP_AUXSTAT);
 
-	if (value & DPAUX_DP_AUXSTAT_TIMEOUT_ERROR) {
-		dev_dbg(dpaux->dev, "timeout error\n");
+	if (value & DPAUX_DP_AUXSTAT_TIMEOUT_ERROR)
 		return -ETIMEDOUT;
-	}
 
 	if ((value & DPAUX_DP_AUXSTAT_RX_ERROR) ||
 	    (value & DPAUX_DP_AUXSTAT_SINKSTAT_ERROR) ||
@@ -320,7 +311,9 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return PTR_ERR(dpaux->clk);
 	}
 
+	pr_info("enabling DPAUX clock...\n");
 	err = clk_prepare_enable(dpaux->clk);
+	pr_info("done: %d\n", err);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to enable module clock: %d\n",
 			err);
