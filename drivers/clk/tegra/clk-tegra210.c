@@ -2319,7 +2319,7 @@ static void tegra210_utmi_param_configure(void __iomem *clk_base)
 }
 
 static const char *tegra_clk_sor1_parents[] = {
-	"sor_safe", "sor1_brick", "pll_p_out0", "pll_d_out0", "pll_d2_out0",
+	"sor_safe", "pll_dp", "pll_p_out0", "pll_d_out0", "pll_d2_out0",
 	"clk_m"
 };
 
@@ -2698,6 +2698,7 @@ static struct tegra_clk_init_table common_init_table[] __initdata = {
 	{TEGRA210_CLK_I2C4, TEGRA210_CLK_PLL_P, 0, 0},
 	{TEGRA210_CLK_I2C5, TEGRA210_CLK_PLL_P, 0, 0},
 	{TEGRA210_CLK_I2C6, TEGRA210_CLK_PLL_P, 0, 0},
+	{TEGRA210_CLK_PLL_DP, TEGRA210_CLK_CLK_MAX, 270000000, 0},
 	/* This MUST be the last entry. */
 	{TEGRA210_CLK_CLK_MAX, TEGRA210_CLK_CLK_MAX, 0, 0},
 };
