@@ -2199,11 +2199,10 @@ static void remove_proc_entries(ipmi_smi_t smi)
 #endif /* CONFIG_PROC_FS */
 }
 
-static int __find_bmc_guid(struct device *dev, void *data)
+static int __find_bmc_guid(struct device *dev, const void *data)
 {
-	unsigned char *id = data;
 	struct bmc_device *bmc = to_bmc_device(dev);
-	return memcmp(bmc->guid, id, 16) == 0;
+	return memcmp(bmc->guid, data, 16) == 0;
 }
 
 static struct bmc_device *ipmi_find_bmc_guid(struct device_driver *drv,
@@ -2223,9 +2222,9 @@ struct prod_dev_id {
 	unsigned char device_id;
 };
 
-static int __find_bmc_prod_dev_id(struct device *dev, void *data)
+static int __find_bmc_prod_dev_id(struct device *dev, const void *data)
 {
-	struct prod_dev_id *id = data;
+	const struct prod_dev_id *id = data;
 	struct bmc_device *bmc = to_bmc_device(dev);
 
 	return (bmc->id.product_id == id->product_id
