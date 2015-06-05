@@ -95,7 +95,7 @@
 
 		ranges = <0x0 0x54000000 0x0 0x54000000 0x0 0x01000000>;
 
-		dpaux@0,54040000 {
+		dpaux1: dpaux@0,54040000 {
 			compatible = "nvidia,tegra210-dpaux";
 			reg = <0x0 0x54040000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -407,14 +407,13 @@
 	apbmisc@0,70000800 {
 		compatible = "nvidia,tegra210-apbmisc", "nvidia,tegra20-apbmisc";
 		reg = <0x0 0x70000800 0x0 0x64>,   /* Chip revision */
-		      <0x0 0x7000E864 0x0 0x04>;   /* Strapping options */
+		      <0x0 0x7000e864 0x0 0x04>;   /* Strapping options */
 	};
 
-	pinmux: pinmux@0,70000868 {
+	pinmux: pinmux@0,700008d4 {
 		compatible = "nvidia,tegra210-pinmux";
-		reg = <0x0 0x70000868 0x0 0x164>, /* Pad control registers */
-		      <0x0 0x70003000 0x0 0x434>, /* Mux registers */
-		      <0x0 0x70000820 0x0 0x008>; /* MIPI pad control */
+		reg = <0x0 0x700008d4 0x0 0x29c>, /* Pad control registers */
+		      <0x0 0x70003000 0x0 0x294>; /* Mux registers */
 	};
 
 	/*
