@@ -161,7 +161,11 @@ struct tegra_pmc {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
-	struct dentry *debugfs;
+
+	struct {
+		struct dentry *powergate;
+		struct dentry *dpd;
+	} debugfs;
 
 	const struct tegra_pmc_soc *soc;
 
@@ -697,14 +701,107 @@ static const struct file_operations powergate_fops = {
 	.release = single_release,
 };
 
-static int tegra_powergate_debugfs_init(void)
+static const char * const rails[] = {
+	[TEGRA_IO_RAIL_CSIA] = "csia",
+	[TEGRA_IO_RAIL_CSIB] = "csib",
+	[TEGRA_IO_RAIL_DSI] = "dsi",
+	[TEGRA_IO_RAIL_MIPI_BIAS] = "mipi-bias",
+	[TEGRA_IO_RAIL_PEX_BIAS] = "pex-bias",
+	[TEGRA_IO_RAIL_PEX_CLK1] = "pex-clk1",
+	[TEGRA_IO_RAIL_PEX_CLK2] = "pex-clk2",
+	[TEGRA_IO_RAIL_USB0] = "usb0",
+	[TEGRA_IO_RAIL_USB1] = "usb1",
+	[TEGRA_IO_RAIL_USB2] = "usb2",
+	[TEGRA_IO_RAIL_USB_BIAS] = "usb-bias",
+	[TEGRA_IO_RAIL_UART] = "uart",
+	[TEGRA_IO_RAIL_AUDIO] = "audio",
+	[TEGRA_IO_RAIL_USB3] = "usb3",
+	[TEGRA_IO_RAIL_HSIC] = "hsic",
+	[TEGRA_IO_RAIL_DBG] = "dbg",
+	[TEGRA_IO_RAIL_DEBUG_NONAO] = "debug-nonao",
+	[TEGRA_IO_RAIL_GPIO] = "gpio",
+	[TEGRA_IO_RAIL_HDMI] = "hdmi",
+	[TEGRA_IO_RAIL_PEX_CNTRL] = "pex-cntrl",
+	[TEGRA_IO_RAIL_SDMMC1] = "sdmmc1",
+	[TEGRA_IO_RAIL_SDMMC3] = "sdmmc3",
+	[TEGRA_IO_RAIL_SDMMC4] = "sdmmc4",
+	[TEGRA_IO_RAIL_CAM] = "cam",
+	[TEGRA_IO_RAIL_SDMMC2] = "sdmmc2",
+	[TEGRA_IO_RAIL_DSIB] = "dsib",
+	[TEGRA_IO_RAIL_DSIC] = "dsic",
+	[TEGRA_IO_RAIL_DSID] = "dsid",
+	[TEGRA_IO_RAIL_CSIC] = "csic",
+	[TEGRA_IO_RAIL_CSID] = "csid",
+	[TEGRA_IO_RAIL_CSIE] = "csie",
+	[TEGRA_IO_RAIL_CSIF] = "csif",
+	[TEGRA_IO_RAIL_SPI] = "spi",
+	[TEGRA_IO_RAIL_SPI_HV] = "spi-hv",
+	[TEGRA_IO_RAIL_DMIC] = "dmic",
+	[TEGRA_IO_RAIL_DP] = "dp",
+	[TEGRA_IO_RAIL_LVDS] = "lvds",
+	[TEGRA_IO_RAIL_AUDIO_HV] = "audio-hv",
+};
+
+static int dpd_show(struct seq_file *s, void *data)
 {
-	pmc->debugfs = debugfs_create_file("powergate", S_IRUGO, NULL, NULL,
-					   &powergate_fops);
-	if (!pmc->debugfs)
-		return -ENOMEM;
+	unsigned int i;
+	u64 status;
+
+	seq_puts(s, "    I/O rail  DPD\n");
+	seq_puts(s, "-----------------\n");
+
+	status = tegra_pmc_readl(IO_DPD2_STATUS);
+	status <<= 32;
+	status |= tegra_pmc_readl(IO_DPD_STATUS);
+
+	for (i = 0; i < ARRAY_SIZE(rails); i++) {
+		const char *dpd;
+
+		if (!rails[i])
+			continue;
+
+		dpd = (status & BIT(i)) ? "yes" : "no";
+
+		seq_printf(s, " %11s %3s\n", rails[i], dpd);
+	}
 
 	return 0;
+}
+
+static int dpd_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dpd_show, inode->i_private);
+}
+
+static const struct file_operations dpd_fops = {
+	.open = dpd_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static int tegra_powergate_debugfs_init(void)
+{
+	pmc->debugfs.powergate = debugfs_create_file("powergate", S_IRUGO,
+						     NULL, NULL,
+						     &powergate_fops);
+	if (!pmc->debugfs.powergate)
+		return -ENOMEM;
+
+	pmc->debugfs.dpd = debugfs_create_file("dpd", S_IRUGO, NULL, NULL,
+					       &dpd_fops);
+	if (!pmc->debugfs.dpd) {
+		debugfs_remove(pmc->debugfs.powergate);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void tegra_powergate_debugfs_exit(void)
+{
+	debugfs_remove(pmc->debugfs.dpd);
+	debugfs_remove(pmc->debugfs.powergate);
 }
 
 static int tegra_powergate_of_get_clks(struct tegra_powergate *pg,
@@ -1316,9 +1413,9 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 
 	err = register_restart_handler(&tegra_pmc_restart_handler);
 	if (err) {
-		debugfs_remove(pmc->debugfs);
 		dev_err(&pdev->dev, "unable to register restart handler: %d\n",
 			err);
+		tegra_powergate_debugfs_exit();
 		return err;
 	}
 
