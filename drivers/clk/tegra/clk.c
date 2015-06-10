@@ -187,10 +187,9 @@ struct tegra_clk_periph_regs *get_reg_bank(int clkid)
 
 	if (reg_bank < periph_banks)
 		return &periph_regs[reg_bank];
-	else {
-		WARN_ON(1);
-		return NULL;
-	}
+
+	WARN_ON(1);
+	return NULL;
 }
 
 struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
@@ -207,7 +206,7 @@ struct clk ** __init tegra_clk_init(void __iomem *regs, int num, int banks)
 
 	periph_banks = banks;
 
-	clks = kzalloc(num * sizeof(struct clk *), GFP_KERNEL);
+	clks = kcalloc(num, sizeof(struct clk *), GFP_KERNEL);
 	if (!clks)
 		kfree(periph_clk_enb_refcnt);
 
@@ -245,6 +244,7 @@ void __init tegra_init_from_table(struct tegra_clk_init_table *tbl,
 
 		if (tbl->parent_id < clk_max) {
 			struct clk *parent = clks[tbl->parent_id];
+
 			if (clk_set_parent(clk, parent)) {
 				pr_err("%s: Failed to set parent %s of %s\n",
 				       __func__, __clk_get_name(parent),
