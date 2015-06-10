@@ -113,13 +113,14 @@ static int bochs_crtc_page_flip(struct drm_crtc *crtc,
 	struct bochs_device *bochs =
 		container_of(crtc, struct bochs_device, crtc);
 	struct drm_framebuffer *old_fb = crtc->primary->fb;
+	unsigned int pipe = drm_crtc_index(crtc);
 	unsigned long irqflags;
 
 	crtc->primary->fb = fb;
 	bochs_crtc_mode_set_base(crtc, 0, 0, old_fb);
 	if (event) {
 		spin_lock_irqsave(&bochs->dev->event_lock, irqflags);
-		drm_send_vblank_event(bochs->dev, -1, event);
+		drm_send_vblank_event(bochs->dev, pipe, event);
 		spin_unlock_irqrestore(&bochs->dev->event_lock, irqflags);
 	}
 	return 0;
