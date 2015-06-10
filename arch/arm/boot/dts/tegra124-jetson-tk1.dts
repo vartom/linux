@@ -53,6 +53,12 @@
 		};
 	};
 
+	gpu@0,57000000 {
+		status = "okay";
+
+		vdd-supply = <&vdd_gpu>;
+	};
+
 	pinmux: pinmux@0,70000868 {
 		pinctrl-names = "boot";
 		pinctrl-0 = <&state_boot>;
@@ -1514,7 +1520,7 @@
 					regulator-always-on;
 				};
 
-				sd6 {
+				vdd_gpu: sd6 {
 					regulator-name = "+VDD_GPU_AP";
 					regulator-min-microvolt = <650000>;
 					regulator-max-microvolt = <1200000>;
@@ -1651,13 +1657,61 @@
 		status = "okay";
 	};
 
+	usb@0,70090000 {
+		status = "okay";
+		phys = <&padctl TEGRA_XUSB_PADCTL_UTMI_P1>, /* mini-PCIe USB */
+		       <&padctl TEGRA_XUSB_PADCTL_UTMI_P2>, /* USB A */
+		       <&padctl TEGRA_XUSB_PADCTL_USB3_P0>; /* USB A */
+		phy-names = "utmi-1", "utmi-2", "usb3-0";
+		avddio-pex-supply = <&vdd_1v05_run>;
+		dvddio-pex-supply = <&vdd_1v05_run>;
+		avdd-usb-supply = <&vdd_3v3_lp0>;
+		avdd-pll-utmip-supply = <&vddio_1v8>;
+		avdd-pll-erefe-supply = <&avdd_1v05_run>;
+		avdd-usb-ss-pll-supply = <&vdd_1v05_run>;
+		hvdd-usb-ss-supply = <&vdd_3v3_lp0>;
+		hvdd-usb-ss-pll-e-supply = <&vdd_3v3_lp0>;
+	};
+
 	padctl@0,7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";
 
+		phys {
+			pcie-0 {
+				status = "okay";
+			};
+
+			sata-0 {
+				status = "okay";
+			};
+
+			usb3-0 {
+				status = "okay";
+
+				nvidia,lanes = "pcie-0";
+				nvidia,port = <2>;
+			};
+
+			utmi-1 {
+				status = "okay";
+			};
+
+			utmi-2 {
+				status = "okay";
+
+				vbus-supply = <&vdd_usb3_vbus>;
+			};
+		};
+
 		padctl_default: pinmux {
+			otg {
+				nvidia,lanes = "otg-0", "otg-1", "otg-2";
+				nvidia,function = "xusb";
+			};
+
 			usb3 {
-				nvidia,lanes = "pcie-0", "pcie-1";
+				nvidia,lanes = "pcie-0";
 				nvidia,function = "usb3";
 				nvidia,iddq = <0>;
 			};
@@ -1689,7 +1743,7 @@
 
 	/* eMMC */
 	sdhci@0,700b0600 {
-		status = "okay";
+		status = "disabled";
 		bus-width = <8>;
 		non-removable;
 	};
@@ -1705,25 +1759,6 @@
 		i2s@0,70301100 {
 			status = "okay";
 		};
-	};
-
-	/* mini-PCIe USB */
-	usb@0,7d004000 {
-		status = "okay";
-	};
-
-	usb-phy@0,7d004000 {
-		status = "okay";
-	};
-
-	/* USB A connector */
-	usb@0,7d008000 {
-		status = "okay";
-	};
-
-	usb-phy@0,7d008000 {
-		status = "okay";
-		vbus-supply = <&vdd_usb3_vbus>;
 	};
 
 	clocks {
