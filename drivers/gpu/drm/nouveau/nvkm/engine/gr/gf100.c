@@ -37,6 +37,12 @@
 #include <nvif/class.h>
 #include <nvif/unpack.h>
 
+#include "netlist.h"
+
+#ifdef __KERNEL__
+#include <nouveau_platform.h>
+#endif
+
 /*******************************************************************************
  * Zero Bandwidth Clear
  ******************************************************************************/
@@ -1533,6 +1539,89 @@ gf100_gr_ctor_fw(struct gf100_gr_priv *priv, const char *fwname,
 	return (fuc->data != NULL) ? 0 : -ENOMEM;
 }
 
+static int
+gf100_gr_duplicate_netlist_region(const struct firmware *fw,
+				  struct netlist_region *region,
+				  struct gf100_gr_fuc *fuc)
+{
+	fuc->size = region->data_size;
+	fuc->data = kmemdup(fw->data + region->data_offset, fuc->size,
+			    GFP_KERNEL);
+	if (!fuc->data)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static int
+gf100_gr_ctor_fw_netlist(struct gf100_gr_priv *priv)
+{
+	struct nvkm_device *device = nv_device(priv);
+	struct nouveau_platform_device *platdev;
+	struct netlist_image *netimage;
+	const struct firmware *fw;
+	const u32 required_fw = BIT(NETLIST_REGIONID_FECS_UCODE_DATA) |
+				BIT(NETLIST_REGIONID_FECS_UCODE_INST) |
+				BIT(NETLIST_REGIONID_GPCCS_UCODE_DATA) |
+				BIT(NETLIST_REGIONID_GPCCS_UCODE_INST);
+	u32 loaded_fw = 0;
+	int i;
+
+	/* Are we a platform device? */
+	if (!device->platformdev)
+		return 0;
+
+	platdev = nv_device_to_platform(device);
+	fw = platdev->gpu->ctxsw_fw;
+	/* No firmware loaded? */
+	if (!fw)
+		return 0;
+
+	netimage = (struct netlist_image *)fw->data;
+	for (i = 0; i < netimage->header.regions; i++) {
+		struct netlist_region region = netimage->regions[i];
+		int err = 0;
+
+		if (loaded_fw & BIT(region.region_id)) {
+			nv_warn(priv, "skipping already loaded fw region\n");
+			continue;
+		}
+
+		switch (region.region_id) {
+		case NETLIST_REGIONID_FECS_UCODE_DATA:
+			err = gf100_gr_duplicate_netlist_region(fw, &region,
+								&priv->fuc409d);
+			break;
+		case NETLIST_REGIONID_FECS_UCODE_INST:
+			err = gf100_gr_duplicate_netlist_region(fw, &region,
+								&priv->fuc409c);
+			break;
+		case NETLIST_REGIONID_GPCCS_UCODE_DATA:
+			err = gf100_gr_duplicate_netlist_region(fw, &region,
+								&priv->fuc41ad);
+			break;
+		case NETLIST_REGIONID_GPCCS_UCODE_INST:
+			err = gf100_gr_duplicate_netlist_region(fw, &region,
+								&priv->fuc41ac);
+			break;
+		}
+
+		if (err)
+			return err;
+
+		loaded_fw |= BIT(region.region_id);
+	}
+
+	/* Check that all FWs have been loaded */
+	if ((loaded_fw & required_fw) != required_fw) {
+		nv_error(priv, "firmwares missing from the netlist image!\n");
+		return -EINVAL;
+	}
+
+	priv->firmware = true;
+	return 0;
+}
+
 void
 gf100_gr_dtor(struct nvkm_object *object)
 {
@@ -1578,6 +1667,14 @@ gf100_gr_ctor(struct nvkm_object *parent, struct nvkm_object *engine,
 
 	if (use_ext_fw) {
 		nv_info(priv, "using external firmware\n");
+		/* First look for a netlist blob */
+		ret = gf100_gr_ctor_fw_netlist(priv);
+		if (ret)
+			return ret;
+	}
+
+	/* Legacy firmware loading if no netlist was present */
+	if (use_ext_fw && !priv->firmware) {
 		if (gf100_gr_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
 		    gf100_gr_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||
 		    gf100_gr_ctor_fw(priv, "fuc41ac", &priv->fuc41ac) ||
