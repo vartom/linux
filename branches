@@ -1,0 +1,15 @@
+#fixes
+clk
+pwm
+iommu
+pci
+powergate
+hda
+xhci
+drm/fixes
+drm/vga
+host1x
+drm/tegra
+drm/panel
+drm/nouveau
+tegra
