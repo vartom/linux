@@ -258,7 +258,8 @@ unlock:
 ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 			 void *buffer, size_t size)
 {
-	int ret;
+	ssize_t err, i;
+	u8 dummy;
 
 	/*
 	 * HP ZR24w corrupts the first DPCD access after entering power save
@@ -272,13 +273,24 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	 * We just have to do it before any DPCD access and hope that the
 	 * monitor doesn't power down exactly after the throw away read.
 	 */
-	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
+	err = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, &dummy,
 				 1);
-	if (ret != 1)
-		return ret;
+	if (err != 1)
+		return err;
 
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				  size);
+	err = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				 size);
+	if (err < 0)
+		goto out;
+
+	for (i = 0; i < err; i++) {
+		u8 *ptr = buffer;
+
+		dev_dbg(aux->dev, "%04zx > %02x\n", offset + i, ptr[i]);
+	}
+
+out:
+	return err;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read);
 
@@ -299,8 +311,22 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size)
 {
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				  size);
+	ssize_t err;
+	size_t i;
+
+	for (i = 0; i < size; i++) {
+		u8 *ptr = buffer;
+
+		dev_dbg(aux->dev, "%04zx < %02x\n", offset + i, ptr[i]);
+	}
+
+	err = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				 size);
+	if (err < 0)
+		goto out;
+
+out:
+	return err;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_write);
 
