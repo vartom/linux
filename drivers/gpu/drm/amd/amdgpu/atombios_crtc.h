@@ -40,7 +40,7 @@ void amdgpu_atombios_crtc_set_disp_eng_pll(struct amdgpu_device *adev,
 u32 amdgpu_atombios_crtc_set_dce_clock(struct amdgpu_device *adev,
 				       u32 freq, u8 clk_type, u8 clk_src);
 void amdgpu_atombios_crtc_program_pll(struct drm_crtc *crtc,
-			       u32 crtc_id,
+			       u32 pipe,
 			       int pll_id,
 			       u32 encoder_mode,
 			       u32 encoder_id,
