@@ -3226,6 +3226,7 @@ enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
 bool drm_detect_hdmi_monitor(struct edid *edid);
 bool drm_detect_monitor_audio(struct edid *edid);
 bool drm_rgb_quant_range_selectable(struct edid *edid);
+bool drm_detect_hdmi_scdc(struct edid *edid);
 int drm_add_modes_noedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
 void drm_set_preferred_mode(struct drm_connector *connector,
