@@ -61,7 +61,6 @@ unsigned int imx_drm_crtc_id(struct imx_drm_crtc *crtc)
 {
 	return drm_crtc_index(crtc->crtc);
 }
-EXPORT_SYMBOL_GPL(imx_drm_crtc_id);
 
 static void imx_drm_driver_lastclose(struct drm_device *drm)
 {
@@ -93,19 +92,16 @@ int imx_drm_crtc_vblank_get(struct imx_drm_crtc *imx_drm_crtc)
 {
 	return drm_crtc_vblank_get(imx_drm_crtc->crtc);
 }
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_get);
 
 void imx_drm_crtc_vblank_put(struct imx_drm_crtc *imx_drm_crtc)
 {
 	drm_crtc_vblank_put(imx_drm_crtc->crtc);
 }
-EXPORT_SYMBOL_GPL(imx_drm_crtc_vblank_put);
 
 void imx_drm_handle_vblank(struct imx_drm_crtc *imx_drm_crtc)
 {
 	drm_crtc_handle_vblank(imx_drm_crtc->crtc);
 }
-EXPORT_SYMBOL_GPL(imx_drm_handle_vblank);
 
 static int imx_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
@@ -155,13 +151,11 @@ void imx_drm_connector_destroy(struct drm_connector *connector)
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
-EXPORT_SYMBOL_GPL(imx_drm_connector_destroy);
 
 void imx_drm_encoder_destroy(struct drm_encoder *encoder)
 {
 	drm_encoder_cleanup(encoder);
 }
-EXPORT_SYMBOL_GPL(imx_drm_encoder_destroy);
 
 static void imx_drm_output_poll_changed(struct drm_device *drm)
 {
@@ -379,7 +373,6 @@ int imx_drm_add_crtc(struct drm_device *drm, struct drm_crtc *crtc,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_drm_add_crtc);
 
 /*
  * imx_drm_remove_crtc - remove a crtc
@@ -397,7 +390,6 @@ int imx_drm_remove_crtc(struct imx_drm_crtc *imx_drm_crtc)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_drm_remove_crtc);
 
 int imx_drm_encoder_parse_of(struct drm_device *drm,
 	struct drm_encoder *encoder, struct device_node *np)
@@ -420,7 +412,6 @@ int imx_drm_encoder_parse_of(struct drm_device *drm,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(imx_drm_encoder_parse_of);
 
 static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 	/* none so far */
