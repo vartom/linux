@@ -1800,6 +1800,11 @@ static struct platform_driver cci_platform_driver = {
 	.probe = cci_platform_probe,
 };
 
+static struct platform_driver * const drivers[] = {
+	&cci_pmu_driver,
+	&cci_platform_driver,
+};
+
 static int __init cci_platform_init(void)
 {
 	int ret;
@@ -1810,11 +1815,7 @@ static int __init cci_platform_init(void)
 	if (ret)
 		return ret;
 
-	ret = platform_driver_register(&cci_pmu_driver);
-	if (ret)
-		return ret;
-
-	return platform_driver_register(&cci_platform_driver);
+	return platform_register_drivers(drivers, ARRAY_SIZE(drivers));
 }
 
 #else /* !CONFIG_ARM_CCI_PMU */
