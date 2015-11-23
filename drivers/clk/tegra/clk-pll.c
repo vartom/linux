@@ -2056,7 +2056,7 @@ struct clk *tegra_clk_register_pllre(const char *name, const char *parent_name,
 	if (val & PLL_BASE_ENABLE)
 		WARN_ON(readl_relaxed(clk_base + pll_params->iddq_reg) &
 				BIT(pll_params->iddq_bit_idx));
-	else {
+	else if (val == 0) {
 		int m;
 
 		m = _pll_fixed_mdiv(pll_params, parent_rate);
