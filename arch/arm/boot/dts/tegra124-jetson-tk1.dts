@@ -1842,21 +1842,20 @@
 
 	/* mini-PCIe USB */
 	usb@7d004000 {
-		status = "okay";
+		status = "disabled";
 	};
 
 	usb-phy@7d004000 {
-		status = "okay";
+		status = "disabled";
 	};
 
 	/* USB A connector */
 	usb@7d008000 {
-		status = "okay";
+		status = "disabled";
 	};
 
 	usb-phy@7d008000 {
-		status = "okay";
-		vbus-supply = <&vdd_usb3_vbus>;
+		status = "disabled";
 	};
 
 	clocks {
