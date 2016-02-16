@@ -3,6 +3,7 @@ clk
 pwm
 iommu
 pci
+pmic
 powergate
 hda
 xhci
