@@ -1317,7 +1317,7 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	err = register_restart_handler(&tegra_pmc_restart_handler);
 	if (err) {
 		debugfs_remove(pmc->debugfs);
-		dev_err(&pdev->dev, "unable to register restart handler, %d\n",
+		dev_err(&pdev->dev, "unable to register restart handler: %d\n",
 			err);
 		return err;
 	}
