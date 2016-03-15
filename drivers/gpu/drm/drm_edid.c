@@ -3582,7 +3582,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	uint8_t *eld = connector->eld;
 	u8 *cea;
 	u8 *db;
-	int total_sad_count = 0;
+	unsigned int total_sad_count = 0;
 	int mnl;
 
 	memset(eld, 0, sizeof(connector->eld));
@@ -3648,7 +3648,7 @@ void drm_edid_to_eld(struct drm_connector *connector, struct edid *edid)
 	eld[DRM_ELD_BASELINE_ELD_LEN] =
 		DIV_ROUND_UP(drm_eld_calc_baseline_block_size(eld), 4);
 
-	DRM_DEBUG_KMS("ELD size %d, SAD count %d\n",
+	DRM_DEBUG_KMS("ELD size %d, SAD count %u\n",
 		      drm_eld_size(eld), total_sad_count);
 }
 EXPORT_SYMBOL(drm_edid_to_eld);
