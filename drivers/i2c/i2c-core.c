@@ -2261,6 +2261,8 @@ static int __init i2c_init(void)
 		goto bus_err;
 	}
 #endif
+	is_registered = true;
+
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;

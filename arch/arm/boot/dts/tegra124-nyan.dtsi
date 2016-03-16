@@ -455,7 +455,7 @@
 			};
 
 			usb3-1 {
-				nvidia,usb2-companion = <1>;
+				nvidia,usb2-companion = <2>;
 				status = "okay";
 			};
 		};
