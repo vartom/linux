@@ -336,11 +336,14 @@
 	};
 
 	usb@c5000000 {
+		compatible = "nvidia,tegra20-udc";
 		status = "okay";
+		dr_mode = "otg";
 	};
 
 	usb-phy@c5000000 {
 		status = "okay";
+		dr_mode = "otg";
 		vbus-supply = <&vbus_reg>;
 	};
 
