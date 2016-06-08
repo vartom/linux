@@ -7,8 +7,8 @@
 	model = "NVIDIA Tegra210 P2371 (P2530/P2595) reference design";
 	compatible = "nvidia,p2371-0000", "nvidia,tegra210";
 
-	host1x@0,50000000 {
-		dsi@0,54300000 {
+	host1x@50000000 {
+		dsi@54300000 {
 			status = "okay";
 
 			avdd-dsi-csi-supply = <&vdd_dsi_csi>;

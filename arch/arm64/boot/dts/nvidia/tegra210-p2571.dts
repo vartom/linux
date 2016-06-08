@@ -1301,7 +1301,7 @@
 	};
 
 	/* microSD */
-	sdhci@0,700b0000 {
+	sdhci@700b0000 {
 		status = "okay";
 		cd-gpios = <&gpio TEGRA_GPIO(Z, 1) GPIO_ACTIVE_LOW>;
 		bus-width = <4>;
