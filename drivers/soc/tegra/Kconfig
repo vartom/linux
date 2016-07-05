@@ -61,6 +61,20 @@ config ARCH_TEGRA_132_SOC
 	  but contains an NVIDIA Denver CPU complex in place of
 	  Tegra124's "4+1" Cortex-A15 CPU complex.
 
+config ARCH_TEGRA_186_SOC
+	bool "NVIDIA Tegra186 SoC"
+	select MAILBOX
+	select TEGRA_BPMP
+	select TEGRA_HSP_MBOX
+	select TEGRA_IVC
+	help
+	  Enable support for the NVIDIA Tegar186 SoC. The Tegra186 has a
+	  combination of Denver and Cortex-A57 CPU cores and GPUs with Pascal
+	  architecture on it. It features with ADSP with Cortex-A9 CPU for
+	  audio processing, hardware video encoder/decoder with multi-format
+	  support, ISP for image capture processing and BPMP for the power
+	  managements.
+
 config ARCH_TEGRA_210_SOC
 	bool "NVIDIA Tegra210 SoC"
 	select PINCTRL_TEGRA210
