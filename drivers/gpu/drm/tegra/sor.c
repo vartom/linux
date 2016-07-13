@@ -2014,21 +2014,17 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 
 	err = drm_dp_aux_enable(sor->aux);
 	if (err < 0)
-		dev_err(sor->dev, "failed to enable DP: %d\n", err);
+		dev_err(sor->dev, "failed to enable DPAUX: %d\n", err);
 
 	err = drm_dp_link_probe(sor->aux, &sor->link.base);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to probe eDP link: %d\n", err);
-		return;
-	}
 
 	tegra_sor_filter_rates(sor);
 
 	err = drm_dp_link_choose(&sor->link.base, mode, info);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to choose link: %d\n", err);
-		goto disable;
-	}
 
 	if (output->panel)
 		drm_panel_prepare(output->panel);
@@ -2108,28 +2104,22 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_dp_term_calibrate(sor);
 
 	err = drm_dp_link_train(&sor->link.base);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "link training failed: %d\n", err);
-		goto disable;
-	}
 
 	dev_dbg(sor->dev, "link training succeeded\n");
 
 	err = drm_dp_link_power_up(sor->aux, &sor->link.base);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to power up eDP link: %d\n", err);
-		goto disable;
-	}
 
 	/* compute configuration */
 	memset(&config, 0, sizeof(config));
 	config.bits_per_pixel = state->bpc * 3;
 
 	err = tegra_sor_compute_config(sor, mode, &config, &sor->link.base);
-	if (err < 0) {
+	if (err < 0)
 		dev_err(sor->dev, "failed to compute configuration: %d\n", err);
-		goto disable;
-	}
 
 	tegra_sor_apply_config(sor, &config);
 
