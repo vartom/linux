@@ -128,7 +128,7 @@ u32 msm_readl(const void __iomem *addr)
 
 struct vblank_event {
 	struct list_head node;
-	int crtc_id;
+	unsigned int pipe;
 	bool enable;
 };
 
@@ -149,10 +149,10 @@ static void vblank_ctrl_worker(struct work_struct *work)
 
 		if (vbl_ev->enable)
 			kms->funcs->enable_vblank(kms,
-						priv->crtcs[vbl_ev->crtc_id]);
+						priv->crtcs[vbl_ev->pipe]);
 		else
 			kms->funcs->disable_vblank(kms,
-						priv->crtcs[vbl_ev->crtc_id]);
+						priv->crtcs[vbl_ev->pipe]);
 
 		kfree(vbl_ev);
 
@@ -163,7 +163,7 @@ static void vblank_ctrl_worker(struct work_struct *work)
 }
 
 static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
-					int crtc_id, bool enable)
+				  unsigned int pipe, bool enable)
 {
 	struct msm_vblank_ctrl *vbl_ctrl = &priv->vblank_ctrl;
 	struct vblank_event *vbl_ev;
@@ -173,7 +173,7 @@ static int vblank_ctrl_queue_work(struct msm_drm_private *priv,
 	if (!vbl_ev)
 		return -ENOMEM;
 
-	vbl_ev->crtc_id = crtc_id;
+	vbl_ev->pipe = pipe;
 	vbl_ev->enable = enable;
 
 	spin_lock_irqsave(&vbl_ctrl->lock, flags);

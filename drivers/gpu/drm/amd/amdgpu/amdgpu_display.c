@@ -66,13 +66,13 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	struct amdgpu_flip_work *work =
 		container_of(__work, struct amdgpu_flip_work, flip_work);
 	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
+	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->pipe];
 
 	struct drm_crtc *crtc = &amdgpuCrtc->base;
 	unsigned long flags;
 	unsigned i, repcnt = 4;
 	int vpos, hpos, stat, min_udelay = 0;
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
+	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->pipe];
 
 	if (amdgpu_flip_handle_fence(work, &work->excl))
 		return;
@@ -102,7 +102,7 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 		 * start in hpos, and to the "fudged earlier" vblank start in
 		 * vpos.
 		 */
-		stat = amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id,
+		stat = amdgpu_get_crtc_scanoutpos(crtc,
 						  GET_DISTANCE_TO_VBLANKSTART,
 						  &vpos, &hpos, NULL, NULL,
 						  &crtc->hwmode);
@@ -125,22 +125,22 @@ static void amdgpu_flip_work_func(struct work_struct *__work)
 	}
 
 	if (!repcnt)
-		DRM_DEBUG_DRIVER("Delay problem on crtc %d: min_udelay %d, "
+		DRM_DEBUG_DRIVER("Delay problem on crtc %u: min_udelay %d, "
 				 "framedur %d, linedur %d, stat %d, vpos %d, "
-				 "hpos %d\n", work->crtc_id, min_udelay,
+				 "hpos %d\n", work->pipe, min_udelay,
 				 vblank->framedur_ns / 1000,
 				 vblank->linedur_ns / 1000, stat, vpos, hpos);
 
 	/* Do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base, work->async);
+	adev->mode_info.funcs->page_flip(adev, work->pipe, work->base, work->async);
 
 	/* Set the flip status */
 	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 
 
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
-					 amdgpuCrtc->crtc_id, amdgpuCrtc, work);
+	DRM_DEBUG_DRIVER("crtc:%u[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
+					 amdgpuCrtc->pipe, amdgpuCrtc, work);
 
 }
 
@@ -196,7 +196,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->adev = adev;
-	work->crtc_id = amdgpu_crtc->crtc_id;
+	work->pipe = amdgpu_crtc->pipe;
 	work->async = (page_flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 	/* schedule unpin of the old buffer */
@@ -257,8 +257,8 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	amdgpu_crtc->pflip_works = work;
 
 
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
-					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
+	DRM_DEBUG_DRIVER("crtc:%u[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
+					 amdgpu_crtc->pipe, amdgpu_crtc, work);
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
@@ -766,8 +766,7 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * Retrieve current video scanout position of crtc on a given gpu, and
  * an optional accurate timestamp of when query happened.
  *
- * \param dev Device to query.
- * \param pipe Crtc to query.
+ * \param crtc CRTC to query.
  * \param flags Flags from caller (DRM_CALLED_FROM_VBLIRQ or 0).
  *              For driver internal use only also supports these flags:
  *
@@ -799,16 +798,16 @@ bool amdgpu_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
  * unknown small number of scanlines wrt. real scanout position.
  *
  */
-int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
-			       unsigned int flags, int *vpos, int *hpos,
-			       ktime_t *stime, ktime_t *etime,
+int amdgpu_get_crtc_scanoutpos(struct drm_crtc *crtc, unsigned int flags,
+			       int *vpos, int *hpos, ktime_t *stime,
+			       ktime_t *etime,
 			       const struct drm_display_mode *mode)
 {
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+	unsigned int pipe = drm_crtc_index(crtc);
 	u32 vbl = 0, position = 0;
 	int vbl_start, vbl_end, vtotal, ret = 0;
 	bool in_vbl = true;
-
-	struct amdgpu_device *adev = dev->dev_private;
 
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
@@ -894,12 +893,12 @@ int amdgpu_get_crtc_scanoutpos(struct drm_device *dev, unsigned int pipe,
 	return ret;
 }
 
-int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, int crtc)
+int amdgpu_crtc_idx_to_irq_type(struct amdgpu_device *adev, unsigned int pipe)
 {
-	if (crtc < 0 || crtc >= adev->mode_info.num_crtc)
+	if (pipe >= adev->mode_info.num_crtc)
 		return AMDGPU_CRTC_IRQ_NONE;
 
-	switch (crtc) {
+	switch (pipe) {
 	case 0:
 		return AMDGPU_CRTC_IRQ_VBLANK1;
 	case 1:
