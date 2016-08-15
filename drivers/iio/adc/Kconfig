@@ -118,6 +118,16 @@ config AD799X
 	  To compile this driver as a module, choose M here: the module will be
 	  called ad799x.
 
+config AS3722_ADC
+	tristate "AMS AS3722 ADC"
+	depends on MFD_AS3722
+	help
+	  Say yes here to build support for the ADC found in AMS AS3722 PMIC
+	  chips.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called as3722-adc.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
