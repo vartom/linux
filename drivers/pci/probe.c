@@ -2,6 +2,8 @@
  * probe.c - PCI detection and setup code
  */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -1232,6 +1234,118 @@ int pci_setup_device(struct pci_dev *dev)
 	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(dev->bus),
 		     dev->bus->number, PCI_SLOT(dev->devfn),
 		     PCI_FUNC(dev->devfn));
+
+	if (1) {
+		unsigned int i;
+		u32 dword;
+		u16 word;
+		u8 byte;
+
+		for (i = 0; i < 16; i += 1) {
+			pci_read_config_byte(dev, i, &byte);
+
+			if (i == 0)
+				pr_debug("%02x", byte);
+			else
+				pr_cont(" %02x", byte);
+		}
+
+		pr_debug("\n");
+
+		for (i = 0; i < 16; i += 2) {
+			pci_read_config_word(dev, i, &word);
+
+			if (i == 0)
+				pr_debug("%04x", word);
+			else
+				pr_cont(" %04x", word);
+		}
+
+		pr_debug("\n");
+
+		for (i = 0; i < 16; i += 4) {
+			pci_read_config_dword(dev, i, &dword);
+
+			if (i == 0)
+				pr_debug("%08x", dword);
+			else
+				pr_cont(" %08x", dword);
+		}
+
+		pr_debug("\n");
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear byte-wise */
+		for (i = 0; i < 4; i++)
+			pci_write_config_byte(dev, PCI_MEMORY_BASE + i, 0xff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear word-wise */
+		for (i = 0; i < 4; i += 2)
+			pci_write_config_word(dev, PCI_MEMORY_BASE + i, 0xffff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear dword-wise */
+		for (i = 0; i < 4; i += 4)
+			pci_write_config_dword(dev, PCI_MEMORY_BASE + i, 0xffffffff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+	}
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 	dev->revision = class & 0xff;
