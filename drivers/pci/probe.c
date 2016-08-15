@@ -2,6 +2,8 @@
  * probe.c - PCI detection and setup code
  */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -521,18 +523,22 @@ static void pci_release_host_bridge_dev(struct device *dev)
 	kfree(bridge);
 }
 
-static struct pci_host_bridge *pci_alloc_host_bridge(struct pci_bus *b)
+struct pci_host_bridge *pci_alloc_host_bridge(size_t priv)
 {
 	struct pci_host_bridge *bridge;
 
-	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
+	bridge = kzalloc(sizeof(*bridge) + priv, GFP_KERNEL);
 	if (!bridge)
 		return NULL;
 
 	INIT_LIST_HEAD(&bridge->windows);
-	bridge->bus = b;
+
+	if (priv)
+		bridge->private = &bridge[1];
+
 	return bridge;
 }
+EXPORT_SYMBOL(pci_alloc_host_bridge);
 
 static const unsigned char pcix_bus_speed[] = {
 	PCI_SPEED_UNKNOWN,		/* 0 */
@@ -1228,6 +1234,118 @@ int pci_setup_device(struct pci_dev *dev)
 	dev_set_name(&dev->dev, "%04x:%02x:%02x.%d", pci_domain_nr(dev->bus),
 		     dev->bus->number, PCI_SLOT(dev->devfn),
 		     PCI_FUNC(dev->devfn));
+
+	if (1) {
+		unsigned int i;
+		u32 dword;
+		u16 word;
+		u8 byte;
+
+		for (i = 0; i < 16; i += 1) {
+			pci_read_config_byte(dev, i, &byte);
+
+			if (i == 0)
+				pr_debug("%02x", byte);
+			else
+				pr_cont(" %02x", byte);
+		}
+
+		pr_debug("\n");
+
+		for (i = 0; i < 16; i += 2) {
+			pci_read_config_word(dev, i, &word);
+
+			if (i == 0)
+				pr_debug("%04x", word);
+			else
+				pr_cont(" %04x", word);
+		}
+
+		pr_debug("\n");
+
+		for (i = 0; i < 16; i += 4) {
+			pci_read_config_dword(dev, i, &dword);
+
+			if (i == 0)
+				pr_debug("%08x", dword);
+			else
+				pr_cont(" %08x", dword);
+		}
+
+		pr_debug("\n");
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear byte-wise */
+		for (i = 0; i < 4; i++)
+			pci_write_config_byte(dev, PCI_MEMORY_BASE + i, 0xff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear word-wise */
+		for (i = 0; i < 4; i += 2)
+			pci_write_config_word(dev, PCI_MEMORY_BASE + i, 0xffff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+
+		/* clear dword-wise */
+		for (i = 0; i < 4; i += 4)
+			pci_write_config_dword(dev, PCI_MEMORY_BASE + i, 0xffffffff);
+
+		/* dump byte, word and dword-wise */
+		dev_dbg(&dev->dev, "PCI_MEMORY_BASE:\n");
+
+		for (i = 0; i < 4; i++)
+			if (pci_read_config_byte(dev, PCI_MEMORY_BASE + i, &byte) == 0)
+				dev_dbg(&dev->dev, "  %u: %02x\n", i, byte);
+
+		for (i = 0; i < 4; i += 2)
+			if (pci_read_config_word(dev, PCI_MEMORY_BASE + i, &word) == 0)
+				dev_dbg(&dev->dev, "  %u: %04x\n", i, word);
+
+		for (i = 0; i < 4; i += 4)
+			if (pci_read_config_dword(dev, PCI_MEMORY_BASE + i, &dword) == 0)
+				dev_dbg(&dev->dev, "  %u: %08x\n", i, dword);
+	}
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 	dev->revision = class & 0xff;
@@ -2126,53 +2244,50 @@ void __weak pcibios_remove_bus(struct pci_bus *bus)
 {
 }
 
-struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
-		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+int pci_host_bridge_register(struct pci_host_bridge *bridge)
 {
 	int error;
-	struct pci_host_bridge *bridge;
 	struct pci_bus *b, *b2;
 	struct resource_entry *window, *n;
+	LIST_HEAD(resources);
 	struct resource *res;
 	resource_size_t offset;
 	char bus_addr[64];
 	char *fmt;
+	struct device *parent = bridge->dev.parent;
 
 	b = pci_alloc_bus(NULL);
 	if (!b)
-		return NULL;
+		return -ENOMEM;
+	bridge->bus = b;
 
-	b->sysdata = sysdata;
-	b->ops = ops;
-	b->number = b->busn_res.start = bus;
+	/* temporarily move resources off the list */
+	list_splice_init(&bridge->windows, &resources);
+	b->sysdata = bridge->sysdata;
+	b->msi = bridge->msi;
+	b->ops = bridge->ops;
+	b->number = b->busn_res.start = bridge->busnr;
 #ifdef CONFIG_PCI_DOMAINS_GENERIC
 	b->domain_nr = pci_bus_find_domain_nr(b, parent);
 #endif
-	b2 = pci_find_bus(pci_domain_nr(b), bus);
+	b2 = pci_find_bus(pci_domain_nr(b), bridge->busnr);
 	if (b2) {
 		/* If we already got to this bus through a different bridge, ignore it */
 		dev_dbg(&b2->dev, "bus already known\n");
+		error = -EEXIST;
 		goto err_out;
 	}
 
-	bridge = pci_alloc_host_bridge(b);
-	if (!bridge)
-		goto err_out;
-
-	bridge->dev.parent = parent;
-	bridge->dev.release = pci_release_host_bridge_dev;
-	dev_set_name(&bridge->dev, "pci%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(&bridge->dev, "pci%04x:%02x", pci_domain_nr(b),
+		     bridge->busnr);
 	error = pcibios_root_bridge_prepare(bridge);
-	if (error) {
-		kfree(bridge);
+	if (error)
 		goto err_out;
-	}
 
 	error = device_register(&bridge->dev);
-	if (error) {
+	if (error)
 		put_device(&bridge->dev);
-		goto err_out;
-	}
+
 	b->bridge = get_device(&bridge->dev);
 	device_enable_async_suspend(b->bridge);
 	pci_set_bus_of_node(b);
@@ -2183,7 +2298,7 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 
 	b->dev.class = &pcibus_class;
 	b->dev.parent = b->bridge;
-	dev_set_name(&b->dev, "%04x:%02x", pci_domain_nr(b), bus);
+	dev_set_name(&b->dev, "%04x:%02x", pci_domain_nr(b), bridge->busnr);
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
@@ -2199,12 +2314,12 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		printk(KERN_INFO "PCI host bridge to bus %s\n", dev_name(&b->dev));
 
 	/* Add initial resources to the bus */
-	resource_list_for_each_entry_safe(window, n, resources) {
+	resource_list_for_each_entry_safe(window, n, &resources) {
 		list_move_tail(&window->node, &bridge->windows);
 		res = window->res;
 		offset = window->offset;
 		if (res->flags & IORESOURCE_BUS)
-			pci_bus_insert_busn_res(b, bus, res->end);
+			pci_bus_insert_busn_res(b, bridge->busnr, res->end);
 		else
 			pci_bus_add_resource(b, res, 0);
 		if (offset) {
@@ -2224,16 +2339,16 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	list_add_tail(&b->node, &pci_root_buses);
 	up_write(&pci_bus_sem);
 
-	return b;
+	return 0;
 
 class_dev_reg_err:
 	put_device(&bridge->dev);
 	device_unregister(&bridge->dev);
 err_out:
 	kfree(b);
-	return NULL;
+	return error;
 }
-EXPORT_SYMBOL_GPL(pci_create_root_bus);
+EXPORT_SYMBOL_GPL(pci_host_bridge_register);
 
 int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int bus_max)
 {
@@ -2298,6 +2413,42 @@ void pci_bus_release_busn_res(struct pci_bus *b)
 			res, ret ? "can not be" : "is");
 }
 
+static struct pci_bus *pci_create_root_bus_msi(struct device *parent,
+		int bus, struct pci_ops *ops, void *sysdata,
+		struct list_head *resources, struct msi_controller *msi)
+{
+	struct pci_host_bridge *bridge;
+	int ret;
+
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
+		return NULL;
+
+	bridge->dev.parent = parent;
+	bridge->dev.release = pci_release_host_bridge_dev;
+	bridge->busnr = bus;
+	bridge->ops = ops;
+	bridge->sysdata = sysdata;
+	bridge->msi = msi;
+	list_splice_init(resources, &bridge->windows);
+
+	ret = pci_host_bridge_register(bridge);
+	if (ret) {
+		kfree(bridge);
+		return NULL;
+	}
+
+	return bridge->bus;
+}
+
+struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
+		struct pci_ops *ops, void *sysdata, struct list_head *resources)
+{
+	return pci_create_root_bus_msi(parent, bus, ops, sysdata, resources,
+				       NULL);
+}
+EXPORT_SYMBOL_GPL(pci_create_root_bus);
+
 struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
 		struct pci_ops *ops, void *sysdata,
 		struct list_head *resources, struct msi_controller *msi)
@@ -2313,11 +2464,9 @@ struct pci_bus *pci_scan_root_bus_msi(struct device *parent, int bus,
 			break;
 		}
 
-	b = pci_create_root_bus(parent, bus, ops, sysdata, resources);
+	b = pci_create_root_bus_msi(parent, bus, ops, sysdata, resources, msi);
 	if (!b)
 		return NULL;
-
-	b->msi = msi;
 
 	if (!found) {
 		dev_info(&b->dev,
