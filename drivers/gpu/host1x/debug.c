@@ -40,7 +40,7 @@ void host1x_debug_output(struct output *o, const char *fmt, ...)
 	len = vsnprintf(o->buf, sizeof(o->buf), fmt, args);
 	va_end(args);
 
-	o->fn(o->ctx, o->buf, len);
+	o->fn(o, o->buf, len);
 }
 
 static int show_channels(struct host1x_channel *ch, void *data, bool show_fifo)
