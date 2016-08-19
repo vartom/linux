@@ -7,6 +7,8 @@
 	compatible = "nvidia,p3310", "nvidia,tegra186";
 
 	aliases {
+		sdhci0 = "/sdhci@3460000";
+		sdhci1 = "/sdhci@3400000";
 		serial0 = &uarta;
 		i2c0 = "/bpmp/i2c";
 		i2c1 = "/i2c@3160000";
@@ -70,6 +72,32 @@
 
 	i2c@31e0000 {
 		status = "okay";
+	};
+
+	/* SDMMC1 (SD/MMC) */
+	sdhci@3400000 {
+		status = "okay";
+
+		cd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 6) GPIO_ACTIVE_LOW>;
+		wp-gpios = <&gpio TEGRA_MAIN_GPIO(P, 4) GPIO_ACTIVE_LOW>;
+
+		vqmmc-supply = <&vddio_sdmmc1>;
+		vmmc-supply = <&vdd_sd>;
+	};
+
+	/* SDMMC3 (SDIO) */
+	sdhci@3440000 {
+		status = "okay";
+	};
+
+	/* SDMMC4 (eMMC) */
+	sdhci@3460000 {
+		status = "okay";
+		bus-width = <8>;
+		non-removable;
+
+		vqmmc-supply = <&vdd_1v8_ap>;
+		vmmc-supply = <&vdd_3v3_sys>;
 	};
 
 	hsp@3c00000 {
@@ -332,6 +360,20 @@
 			enable-active-high;
 
 			vin-supply = <&vdd_1v8>;
+		};
+
+		vdd_sd: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+
+			regulator-name = "SD_CARD_SW_PWR";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+
+			gpio = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_3v3_sys>;
 		};
 	};
 };
