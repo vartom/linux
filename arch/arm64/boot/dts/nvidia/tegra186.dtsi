@@ -9,6 +9,23 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	gpio@2200000 {
+		compatible = "nvidia,tegra186-gpio";
+		reg-names = "security", "gpio";
+		reg = <0x0 0x2200000 0x0 0x10000>,
+		      <0x0 0x2210000 0x0 0x10000>;
+		interrupts = <GIC_SPI  47 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI  50 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI  53 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI  56 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI  59 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+		#interrupt-cells = <2>;
+		interrupt-controller;
+		#gpio-cells = <2>;
+		gpio-controller;
+	};
+
 	uarta: serial@03100000 {
 		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
 		reg = <0x0 0x03100000 0x0 0x40>;
