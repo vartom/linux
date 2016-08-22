@@ -675,6 +675,42 @@ static void tegra_bpmp_channel_cleanup(struct tegra_bpmp_channel *channel)
 	tegra_ivc_cleanup(channel->ivc);
 }
 
+static int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
+{
+	struct mrq_pg_read_state_response response;
+	struct mrq_pg_read_state_request request;
+	struct tegra_bpmp_message msg;
+	unsigned int i;
+	int err;
+
+	dev_dbg(bpmp->dev, "powergates:\n");
+
+	for (i = 0; i < 32; i++) {
+		memset(&request, 0, sizeof(request));
+		request.partition_id = i;
+
+		memset(&response, 0, sizeof(response));
+
+		memset(&msg, 0, sizeof(msg));
+		msg.mrq = MRQ_PG_READ_STATE;
+		msg.tx.data = &request;
+		msg.tx.size = sizeof(request);
+		msg.rx.data = &response;
+		msg.rx.size = sizeof(response);
+
+		err = tegra_bpmp_transfer(bpmp, &msg);
+		if (err < 0) {
+			dev_err(bpmp->dev, "failed to transfer message: %d\n", err);
+			continue;
+		}
+
+		dev_dbg(bpmp->dev, "  %u: %x (%x)\n", i, response.logic_state,
+			response.sram_state);
+	}
+
+	return 0;
+}
+
 static int tegra_bpmp_probe(struct platform_device *pdev)
 {
 	struct tegra_bpmp_channel *channel;
@@ -793,6 +829,10 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 		goto free_mrq;
 
 	err = tegra_bpmp_init_resets(bpmp);
+	if (err < 0)
+		goto free_mrq;
+
+	err = tegra_bpmp_init_powergates(bpmp);
 	if (err < 0)
 		goto free_mrq;
 
