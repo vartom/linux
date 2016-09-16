@@ -2868,21 +2868,20 @@ static int dwceqos_probe(struct platform_device *pdev)
 		goto err_out_clk_dis_aper;
 	}
 
-	lp->phy_node = of_parse_phandle(lp->pdev->dev.of_node,
-						"phy-handle", 0);
-	if (!lp->phy_node && of_phy_is_fixed_link(lp->pdev->dev.of_node)) {
-		ret = of_phy_register_fixed_link(lp->pdev->dev.of_node);
+	lp->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
+	if (!lp->phy_node && of_phy_is_fixed_link(pdev->dev.of_node)) {
+		ret = of_phy_register_fixed_link(pdev->dev.of_node);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "invalid fixed-link");
 			goto err_out_clk_dis_phy;
 		}
 
-		lp->phy_node = of_node_get(lp->pdev->dev.of_node);
+		lp->phy_node = of_node_get(pdev->dev.of_node);
 	}
 
-	ret = of_get_phy_mode(lp->pdev->dev.of_node);
+	ret = of_get_phy_mode(pdev->dev.of_node);
 	if (ret < 0) {
-		dev_err(&lp->pdev->dev, "error in getting phy i/f\n");
+		dev_err(&pdev->dev, "error in getting phy i/f\n");
 		goto err_out_clk_dis_phy;
 	}
 
@@ -2890,7 +2889,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 
 	ret = dwceqos_mii_init(lp);
 	if (ret) {
-		dev_err(&lp->pdev->dev, "error in dwceqos_mii_init\n");
+		dev_err(&pdev->dev, "error in dwceqos_mii_init\n");
 		goto err_out_clk_dis_phy;
 	}
 
@@ -2914,17 +2913,16 @@ static int dwceqos_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	ret = dwceqos_probe_config_dt(pdev);
 	if (ret) {
-		dev_err(&lp->pdev->dev, "Unable to retrieve DT, error %d\n",
-			ret);
+		dev_err(&pdev->dev, "Unable to retrieve DT, error %d\n", ret);
 		goto err_out_clk_dis_phy;
 	}
-	dev_info(&lp->pdev->dev, "pdev->id %d, baseaddr 0x%08lx, irq %d\n",
+	dev_info(&pdev->dev, "pdev->id %d, baseaddr 0x%08lx, irq %d\n",
 		 pdev->id, ndev->base_addr, ndev->irq);
 
 	ret = devm_request_irq(&pdev->dev, ndev->irq, &dwceqos_interrupt, 0,
 			       ndev->name, ndev);
 	if (ret) {
-		dev_err(&lp->pdev->dev, "Unable to request IRQ %d, error %d\n",
+		dev_err(&pdev->dev, "Unable to request IRQ %d, error %d\n",
 			ndev->irq, ret);
 		goto err_out_clk_dis_phy;
 	}
