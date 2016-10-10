@@ -1133,30 +1133,6 @@ int tegra_io_pad_get_voltage(enum tegra_io_pad id)
 }
 EXPORT_SYMBOL(tegra_io_pad_get_voltage);
 
-/**
- * tegra_io_rail_power_on() - enable power to I/O rail
- * @id: Tegra I/O pad ID for which to enable power
- *
- * See also: tegra_io_pad_power_enable()
- */
-int tegra_io_rail_power_on(unsigned int id)
-{
-	return tegra_io_pad_power_enable(id);
-}
-EXPORT_SYMBOL(tegra_io_rail_power_on);
-
-/**
- * tegra_io_rail_power_off() - disable power to I/O rail
- * @id: Tegra I/O pad ID for which to disable power
- *
- * See also: tegra_io_pad_power_disable()
- */
-int tegra_io_rail_power_off(unsigned int id)
-{
-	return tegra_io_pad_power_disable(id);
-}
-EXPORT_SYMBOL(tegra_io_rail_power_off);
-
 #ifdef CONFIG_PM_SLEEP
 enum tegra_suspend_mode tegra_pmc_get_suspend_mode(void)
 {
