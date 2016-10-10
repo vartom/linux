@@ -1426,9 +1426,10 @@ static void tegra_sor_edp_disable(struct drm_encoder *encoder)
 			dev_err(sor->dev, "failed to disable DP: %d\n", err);
 	}
 
-	err = tegra_io_rail_power_off(TEGRA_IO_RAIL_LVDS);
+	err = tegra_io_pad_power_disable(TEGRA_IO_PAD_LVDS);
 	if (err < 0)
-		dev_err(sor->dev, "failed to power off I/O rail: %d\n", err);
+		dev_err(sor->dev, "failed to disable power to I/O pad: %d\n",
+			err);
 
 	if (output->panel)
 		drm_panel_unprepare(output->panel);
@@ -1586,9 +1587,10 @@ static void tegra_sor_edp_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_DP_PADCTL0);
 
 	/* step 2 */
-	err = tegra_io_rail_power_on(TEGRA_IO_RAIL_LVDS);
+	err = tegra_io_pad_power_enable(TEGRA_IO_PAD_LVDS);
 	if (err < 0)
-		dev_err(sor->dev, "failed to power on I/O rail: %d\n", err);
+		dev_err(sor->dev, "failed to enable power to I/O pad: %d\n",
+			err);
 
 	usleep_range(5, 100);
 
@@ -1975,9 +1977,10 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	if (err < 0)
 		dev_err(sor->dev, "failed to power down SOR: %d\n", err);
 
-	err = tegra_io_rail_power_off(TEGRA_IO_RAIL_HDMI);
+	err = tegra_io_pad_power_disable(TEGRA_IO_PAD_HDMI);
 	if (err < 0)
-		dev_err(sor->dev, "failed to power off HDMI rail: %d\n", err);
+		dev_err(sor->dev, "failed to disable power to HDMI rail: %d\n",
+			err);
 
 	pm_runtime_put(sor->dev);
 }
@@ -2007,9 +2010,10 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 
 	div = clk_get_rate(sor->clk) / 1000000 * 4;
 
-	err = tegra_io_rail_power_on(TEGRA_IO_RAIL_HDMI);
+	err = tegra_io_pad_power_enable(TEGRA_IO_PAD_HDMI);
 	if (err < 0)
-		dev_err(sor->dev, "failed to power on HDMI rail: %d\n", err);
+		dev_err(sor->dev, "failed to enable power to HDMI rail: %d\n",
+			err);
 
 	usleep_range(20, 100);
 
