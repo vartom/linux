@@ -494,12 +494,35 @@ static void __iomem *tegra_pcie_map_bus(struct pci_bus *bus,
 	return addr;
 }
 
+static int tegra_pcie_config_read(struct pci_bus *bus, unsigned int devfn,
+				  int where, int size, u32 *value)
+{
+	pr_info("reading %d bytes from %x of device: 0000:%02x:%02x.%1x\n",
+		size, where, bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn));
+
+	if (bus->number == 0)
+		return pci_generic_config_read32(bus, devfn, where, size,
+						 value);
+
+	return pci_generic_config_read(bus, devfn, where, size, value);
+}
+
+static int tegra_pcie_config_write(struct pci_bus *bus, unsigned int devfn,
+				   int where, int size, u32 value)
+{
+	if (bus->number == 0)
+		return pci_generic_config_write32(bus, devfn, where, size,
+						  value);
+
+	return pci_generic_config_write(bus, devfn, where, size, value);
+}
+
 static struct pci_ops tegra_pcie_ops = {
 	.add_bus = tegra_pcie_add_bus,
 	.remove_bus = tegra_pcie_remove_bus,
 	.map_bus = tegra_pcie_map_bus,
-	.read = pci_generic_config_read32,
-	.write = pci_generic_config_write32,
+	.read = tegra_pcie_config_read,
+	.write = tegra_pcie_config_write,
 };
 
 static unsigned long tegra_pcie_port_get_pex_ctrl(struct tegra_pcie_port *port)
