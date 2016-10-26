@@ -17,9 +17,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
-
-#include <asm/system_misc.h>
+#include <linux/system-power.h>
 
 #define PMC_CNTRL 0x000
 #define  PMC_CNTRL_MAIN_RST BIT(4)
@@ -38,22 +36,23 @@
 				     SCRATCH_SCRATCH0_MODE_RCM)
 
 struct tegra_pmc {
+	struct system_power_chip chip;
 	struct device *dev;
 	void __iomem *regs;
 	void __iomem *wake;
 	void __iomem *aotag;
 	void __iomem *scratch;
-
-	void (*system_restart)(enum reboot_mode mode, const char *cmd);
-	struct notifier_block restart;
 };
 
-static int tegra186_pmc_restart_notify(struct notifier_block *nb,
-				       unsigned long action,
-				       void *data)
+static inline struct tegra_pmc *to_pmc(struct system_power_chip *chip)
 {
-	struct tegra_pmc *pmc = container_of(nb, struct tegra_pmc, restart);
-	const char *cmd = data;
+	return container_of(chip, struct tegra_pmc, chip);
+}
+
+static int tegra186_pmc_restart_prepare(struct system_power_chip *chip,
+					enum reboot_mode mode, char *cmd)
+{
+	struct tegra_pmc *pmc = to_pmc(chip);
 	u32 value;
 
 	value = readl(pmc->scratch + SCRATCH_SCRATCH0);
@@ -72,24 +71,24 @@ static int tegra186_pmc_restart_notify(struct notifier_block *nb,
 
 	writel(value, pmc->scratch + SCRATCH_SCRATCH0);
 
-	/*
-	 * If available, call the system restart implementation that was
-	 * registered earlier (typically PSCI).
-	 */
-	if (pmc->system_restart) {
-		pmc->system_restart(reboot_mode, cmd);
-		return NOTIFY_DONE;
-	}
+	return 0;
+}
+
+static int tegra186_pmc_restart(struct system_power_chip *chip,
+				enum reboot_mode mode, char *cmd)
+{
+	struct tegra_pmc *pmc = to_pmc(chip);
+	u32 value;
 
 	/* reset everything but SCRATCH0_SCRATCH0 and PMC_RST_STATUS */
 	value = readl(pmc->regs + PMC_CNTRL);
 	value |= PMC_CNTRL_MAIN_RST;
 	writel(value, pmc->regs + PMC_CNTRL);
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
-static int tegra186_pmc_setup(struct tegra_pmc *pmc)
+static void tegra186_pmc_setup(struct tegra_pmc *pmc)
 {
 	struct device_node *np = pmc->dev->of_node;
 	bool invert;
@@ -105,24 +104,13 @@ static int tegra186_pmc_setup(struct tegra_pmc *pmc)
 		value &= ~WAKE_AOWAKE_CTRL_INTR_POLARITY;
 
 	writel(value, pmc->wake + WAKE_AOWAKE_CTRL);
-
-	/*
-	 * We need to hook any system restart implementation registered
-	 * previously so we can write SCRATCH_SCRATCH0 before reset.
-	 */
-	pmc->system_restart = arm_pm_restart;
-	arm_pm_restart = NULL;
-
-	pmc->restart.notifier_call = tegra186_pmc_restart_notify;
-	pmc->restart.priority = 128;
-
-	return register_restart_handler(&pmc->restart);
 }
 
 static int tegra186_pmc_probe(struct platform_device *pdev)
 {
 	struct tegra_pmc *pmc;
 	struct resource *res;
+	int err;
 
 	pmc = devm_kzalloc(&pdev->dev, sizeof(*pmc), GFP_KERNEL);
 	if (!pmc)
@@ -150,7 +138,31 @@ static int tegra186_pmc_probe(struct platform_device *pdev)
 	if (IS_ERR(pmc->scratch))
 		return PTR_ERR(pmc->scratch);
 
-	return tegra186_pmc_setup(pmc);
+	pmc->chip.level = SYSTEM_POWER_LEVEL_SOC;
+	pmc->chip.dev = &pdev->dev;
+	pmc->chip.restart_prepare = tegra186_pmc_restart_prepare;
+	pmc->chip.restart = tegra186_pmc_restart;
+
+	err = system_power_chip_add(&pmc->chip);
+	if (err < 0) {
+		dev_err(&pdev->dev,
+			"failed to register system power chip: %d\n",
+			err);
+		return err;
+	}
+
+	tegra186_pmc_setup(pmc);
+
+	platform_set_drvdata(pdev, pmc);
+
+	return 0;
+}
+
+static int tegra186_pmc_remove(struct platform_device *pdev)
+{
+	struct tegra_pmc *pmc = platform_get_drvdata(pdev);
+
+	return system_power_chip_remove(&pmc->chip);
 }
 
 static const struct of_device_id tegra186_pmc_of_match[] = {
@@ -165,5 +177,6 @@ static struct platform_driver tegra186_pmc_driver = {
 		.of_match_table = tegra186_pmc_of_match,
 	},
 	.probe = tegra186_pmc_probe,
+	.remove = tegra186_pmc_remove,
 };
 builtin_platform_driver(tegra186_pmc_driver);
