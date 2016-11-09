@@ -286,4 +286,12 @@ extern struct platform_driver tegra_sor_driver;
 extern struct platform_driver tegra_gr2d_driver;
 extern struct platform_driver tegra_gr3d_driver;
 
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+extern struct platform_driver tegra186_nvdisplay_driver;
+extern struct platform_driver tegra186_display_driver;
+extern struct platform_driver tegra186_dpaux_driver;
+extern struct platform_driver tegra186_dsi_driver;
+extern struct platform_driver tegra186_sor_driver;
+#endif
+
 #endif /* HOST1X_DRM_H */

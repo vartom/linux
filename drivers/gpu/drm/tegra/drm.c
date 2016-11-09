@@ -1089,6 +1089,13 @@ static struct platform_driver * const drivers[] = {
 	&tegra_sor_driver,
 	&tegra_gr2d_driver,
 	&tegra_gr3d_driver,
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+	&tegra186_nvdisplay_driver,
+	&tegra186_display_driver,
+	&tegra186_dpaux_driver,
+	&tegra186_dsi_driver,
+	&tegra186_sor_driver,
+#endif
 };
 
 static int __init host1x_drm_init(void)

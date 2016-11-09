@@ -15,4 +15,11 @@ tegra-drm-y := \
 	gr2d.o \
 	gr3d.o
 
+tegra-drm-$(CONFIG_ARCH_TEGRA_186_SOC) += \
+	parker/nvdisplay.o \
+	parker/display.o \
+	parker/dpaux.o \
+	parker/dsi.o \
+	parker/sor.o
+
 obj-$(CONFIG_DRM_TEGRA) += tegra-drm.o
