@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define DEBUG
+
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/slab.h>
@@ -24,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/reset.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/host1x.h>
@@ -103,6 +106,7 @@ static const struct host1x_info host1x05_info = {
 };
 
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
 	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },
@@ -119,6 +123,8 @@ static int host1x_probe(struct platform_device *pdev)
 	struct resource *regs;
 	int syncpt_irq;
 	int err;
+
+	dev_dbg(&pdev->dev, "> %s(pdev=%p)\n", __func__, pdev);
 
 	id = of_match_device(host1x_of_match, &pdev->dev);
 	if (!id)
@@ -168,6 +174,13 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	host->rst = devm_reset_control_get(&pdev->dev, "host1x");
+	if (IS_ERR(host->rst)) {
+		err = PTR_ERR(host->rst);
+		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
+		return err;
+	}
+
 	err = host1x_channel_list_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize channel list\n");
@@ -180,10 +193,16 @@ static int host1x_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = reset_control_deassert(host->rst);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to deassert reset: %d\n", err);
+		goto fail_unprepare_disable;
+	}
+
 	err = host1x_syncpt_init(host);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize syncpts\n");
-		goto fail_unprepare_disable;
+		goto fail_assert_reset;
 	}
 
 	err = host1x_intr_init(host, syncpt_irq);
@@ -198,14 +217,18 @@ static int host1x_probe(struct platform_device *pdev)
 	if (err < 0)
 		goto fail_deinit_intr;
 
+	dev_dbg(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 
 fail_deinit_intr:
 	host1x_intr_deinit(host);
 fail_deinit_syncpt:
 	host1x_syncpt_deinit(host);
+fail_assert_reset:
+	reset_control_assert(host->rst);
 fail_unprepare_disable:
 	clk_disable_unprepare(host->clk);
+	dev_dbg(&pdev->dev, "< %s() = %d\n", __func__, err);
 	return err;
 }
 
@@ -216,6 +239,7 @@ static int host1x_remove(struct platform_device *pdev)
 	host1x_unregister(host);
 	host1x_intr_deinit(host);
 	host1x_syncpt_deinit(host);
+	reset_control_assert(host->rst);
 	clk_disable_unprepare(host->clk);
 
 	return 0;

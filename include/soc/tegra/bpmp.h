@@ -15,11 +15,17 @@
 #define __SOC_TEGRA_BPMP_H
 
 #include <linux/mailbox_client.h>
+#include <linux/pm_domain.h>
 #include <linux/reset-controller.h>
 #include <linux/semaphore.h>
 #include <linux/types.h>
 
 #include <soc/tegra/bpmp-abi.h>
+
+struct tegra_powergate_soc {
+	const char *name;
+	unsigned int id;
+};
 
 struct tegra_bpmp_soc {
 	struct {
@@ -61,8 +67,11 @@ struct tegra_bpmp {
 	const struct tegra_bpmp_soc *soc;
 	struct device *dev;
 
-	void __iomem *tx_base;
-	void __iomem *rx_base;
+	struct {
+		struct gen_pool *pool;
+		dma_addr_t phys;
+		void *virt;
+	} tx, rx;
 
 	struct {
 		struct mbox_client client;
@@ -86,6 +95,9 @@ struct tegra_bpmp {
 	struct clk_hw **clocks;
 
 	struct reset_controller_dev rstc;
+
+	const struct tegra_powergate_soc *powergates;
+	struct genpd_onecell_data genpd;
 };
 
 struct tegra_bpmp *tegra_bpmp_get(struct device *dev);
@@ -117,5 +129,6 @@ void tegra_bpmp_free_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 
 int tegra_bpmp_init_clocks(struct tegra_bpmp *bpmp);
 int tegra_bpmp_init_resets(struct tegra_bpmp *bpmp);
+int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp);
 
 #endif /* __SOC_TEGRA_BPMP_H */

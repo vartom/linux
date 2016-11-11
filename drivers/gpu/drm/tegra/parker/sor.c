@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <linux/clk.h>
 #include <linux/clk-provider.h> /* XXX */
 #include <linux/component.h>
@@ -16,6 +14,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 
+#include "../drm.h"
 #include "display.h"
 
 #define SOR_SUPER_STATE0 0x004
@@ -1971,7 +1970,7 @@ static int tegra186_sor_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
+	if (0 && IS_ENABLED(CONFIG_DEBUG_FS)) {
 		unsigned int i, width = 0;
 
 		for (i = 0; i < ARRAY_SIZE(tegra_sor_regs); i++) {

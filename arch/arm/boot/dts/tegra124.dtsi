@@ -817,6 +817,8 @@
 		resets = <&tegra_car 14>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		dma-ranges = <0 0 0x1 0x0>;
 	};
 
 	sdhci@700b0200 {
@@ -827,6 +829,8 @@
 		resets = <&tegra_car 9>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		dma-ranges = <0 0 0x1 0x0>;
 	};
 
 	sdhci@700b0400 {
@@ -837,6 +841,8 @@
 		resets = <&tegra_car 69>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		dma-ranges = <0 0 0x1 0x0>;
 	};
 
 	sdhci@700b0600 {
@@ -847,6 +853,8 @@
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		dma-ranges = <0 0 0x1 0x0>;
 	};
 
 	soctherm: thermal-sensor@700e2000 {

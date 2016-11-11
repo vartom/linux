@@ -131,13 +131,13 @@ static inline void tegra_hsp_channel_writel(struct tegra_hsp_channel *channel,
 	writel(value, channel->regs + offset);
 }
 
-static int tegra_hsp_doorbell_can_ring(struct tegra_hsp_doorbell *db)
+static bool tegra_hsp_doorbell_can_ring(struct tegra_hsp_doorbell *db)
 {
 	u32 value;
 
 	value = tegra_hsp_channel_readl(&db->channel, HSP_DB_ENABLE);
 
-	return !!(value & BIT(TEGRA_HSP_DB_MASTER_CCPLEX));
+	return (value & BIT(TEGRA_HSP_DB_MASTER_CCPLEX)) != 0;
 }
 
 static struct tegra_hsp_doorbell *
@@ -184,7 +184,18 @@ static irqreturn_t tegra_hsp_doorbell_irq(int irq, void *data)
 		struct tegra_hsp_doorbell *db;
 
 		db = __tegra_hsp_doorbell_get(hsp, master);
-		if (db)
+		/*
+		 * Depending on the bootloader chain, the CCPLEX doorbell will
+		 * have some doorbells enabled, which means that requesting an
+		 * interrupt will immediately fire.
+		 *
+		 * In that case, db->channel.chan will still be NULL here and
+		 * cause a crash if not properly guarded.
+		 *
+		 * It remains to be seen if ignoring the doorbell in that case
+		 * is the correct solution.
+		 */
+		if (db && db->channel.chan)
 			mbox_chan_received_data(db->channel.chan, NULL);
 	}
 
@@ -423,6 +434,8 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	u32 value;
 	int err;
 
+	dev_info(&pdev->dev, "> %s(pdev=%p)\n", __func__, pdev);
+
 	hsp = devm_kzalloc(&pdev->dev, sizeof(*hsp), GFP_KERNEL);
 	if (!hsp)
 		return -ENOMEM;
@@ -450,14 +463,6 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	}
 
 	hsp->irq = err;
-
-	err = devm_request_irq(&pdev->dev, hsp->irq, tegra_hsp_doorbell_irq,
-			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), hsp);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n",
-			hsp->irq, err);
-		return err;
-	}
 
 	hsp->mbox.of_xlate = of_tegra_hsp_xlate;
 	hsp->mbox.num_chans = 32;
@@ -487,6 +492,15 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = devm_request_irq(&pdev->dev, hsp->irq, tegra_hsp_doorbell_irq,
+			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), hsp);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to request IRQ#%u: %d\n",
+			hsp->irq, err);
+		return err;
+	}
+
+	dev_info(&pdev->dev, "< %s()\n", __func__);
 	return 0;
 }
 
@@ -501,8 +515,8 @@ static int tegra_hsp_remove(struct platform_device *pdev)
 }
 
 static const struct tegra_hsp_db_map tegra186_hsp_db_map[] = {
-	{ "ccplex", TEGRA_HSP_DB_MASTER_CCPLEX, HSP_DB_CCPLEX },
-	{ "bpmp",   TEGRA_HSP_DB_MASTER_BPMP,   HSP_DB_BPMP   },
+	{ "ccplex", TEGRA_HSP_DB_MASTER_CCPLEX, HSP_DB_CCPLEX, },
+	{ "bpmp",   TEGRA_HSP_DB_MASTER_BPMP,   HSP_DB_BPMP,   },
 	{ /* sentinel */ }
 };
 

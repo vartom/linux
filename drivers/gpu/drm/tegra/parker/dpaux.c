@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
@@ -8,21 +6,13 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
+#include "../drm.h"
+
 struct tegra_dpaux {
 	void __iomem *regs;
 	struct clk *clk;
 	struct reset_control *rst;
 };
-
-static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux, unsigned int offset)
-{
-	return readl(dpaux->regs + (offset << 2));
-}
-
-static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux, u32 value, unsigned int offset)
-{
-	writel(value, dpaux->regs + (offset << 2));
-}
 
 static int tegra186_dpaux_probe(struct platform_device *pdev)
 {
@@ -75,20 +65,19 @@ static int tegra186_dpaux_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dpaux);
 	pm_runtime_enable(&pdev->dev);
 
+	/* we need to keep this on, otherwise HDMI DDC won't work */
+	pm_runtime_get_sync(&pdev->dev);
+
 	/* configure for HDMI DDC */
 	if (1) {
 		u32 value;
 
-		pm_runtime_get_sync(&pdev->dev);
-
 		value = (1 << 15) | (1 << 14) | (1 << 0);
-		tegra_dpaux_writel(dpaux, value, 0x49);
+		writel(value, dpaux->regs + 0x124);
 
-		value = tegra_dpaux_readl(dpaux, 0x4d);
+		value = readl(dpaux->regs + 0x134);
 		value &= ~(1 << 0);
-		tegra_dpaux_writel(dpaux, value, 0x4d);
-
-		pm_runtime_put(&pdev->dev);
+		writel(value, dpaux->regs + 0x134);
 	}
 
 out:
@@ -102,6 +91,7 @@ static int tegra186_dpaux_remove(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "> %s(pdev=%p)\n", __func__, pdev);
 
+	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "< %s() = %d\n", __func__, err);

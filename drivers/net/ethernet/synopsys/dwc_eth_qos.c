@@ -24,43 +24,39 @@
  *  version 2, as published by the Free Software Foundation.
  */
 
-#include <linux/clk.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/io.h>
-#include <linux/ethtool.h>
-#include <linux/stat.h>
-#include <linux/types.h>
-
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/mm.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/platform_device.h>
-
-#include <linux/phy.h>
-#include <linux/mii.h>
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-#include <linux/vmalloc.h>
-
-#include <linux/device.h>
 #include <linux/bitrev.h>
-#include <linux/crc32.h>
-
-#include <linux/of.h>
-#include <linux/interrupt.h>
+#include <linux/clk.h>
 #include <linux/clocksource.h>
+#include <linux/crc32.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/etherdevice.h>
+#include <linux/ethtool.h>
+#include <linux/gpio/consumer.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/mii.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
 #include <linux/net_tstamp.h>
-#include <linux/pm_runtime.h>
-#include <linux/of_net.h>
 #include <linux/of_address.h>
+#include <linux/of.h>
 #include <linux/of_mdio.h>
-#include <linux/timer.h>
+#include <linux/of_net.h>
+#include <linux/phy.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/reset.h>
+#include <linux/slab.h>
+#include <linux/stat.h>
 #include <linux/tcp.h>
+#include <linux/timer.h>
+#include <linux/types.h>
+#include <linux/vmalloc.h>
 
 #define DRIVER_NAME			"dwceqos"
 #define DRIVER_DESCRIPTION		"Synopsys DWC Ethernet QoS driver"
@@ -104,7 +100,9 @@
 #define REG_DWCEQOS_DMA_CH0_CTRL         0x1100
 #define REG_DWCEQOS_DMA_CH0_TX_CTRL      0x1104
 #define REG_DWCEQOS_DMA_CH0_RX_CTRL      0x1108
+#define REG_DWCEQOS_DMA_CH0_TXDESC_LIST_HIGH  0x1110
 #define REG_DWCEQOS_DMA_CH0_TXDESC_LIST  0x1114
+#define REG_DWCEQOS_DMA_CH0_RXDESC_LIST_HIGH  0x1118
 #define REG_DWCEQOS_DMA_CH0_RXDESC_LIST  0x111c
 #define REG_DWCEQOS_DMA_CH0_TXDESC_TAIL  0x1120
 #define REG_DWCEQOS_DMA_CH0_RXDESC_TAIL  0x1128
@@ -123,6 +121,7 @@
 #define DWCEQOS_DMA_SYSBUS_MODE_EN_LPI   BIT(31)
 #define DWCEQOS_DMA_SYSBUS_MODE_FB       BIT(0)
 #define DWCEQOS_DMA_SYSBUS_MODE_AAL      BIT(12)
+#define DWCEQOS_DMA_SYSBUS_MODE_EAME     BIT(12)
 
 #define DWCEQOS_DMA_SYSBUS_MODE_RD_OSR_LIMIT(x) \
 	(((x) << 16) & 0x000F0000)
@@ -252,6 +251,7 @@
 #define REG_DWCEQOS_MAC_IS               0x00b0
 #define REG_DWCEQOS_MAC_IE               0x00b4
 #define REG_DWCEQOS_MAC_STAT             0x00b8
+#define REG_DWCEQOS_MAC_PHYIF_CTRL       0x00f8
 #define REG_DWCEQOS_MAC_MDIO_ADDR        0x0200
 #define REG_DWCEQOS_MAC_MDIO_DATA        0x0204
 #define REG_DWCEQOS_MAC_MAC_ADDR0_HI     0x0300
@@ -269,6 +269,7 @@
 #define REG_DWCEQOS_MAC_RX_FLOW_CTRL     0x0090
 #define REG_DWCEQOS_MAC_Q0_TX_FLOW	 0x0070
 
+#define DWCEQOS_MAC_CFG_CST              BIT(21)
 #define DWCEQOS_MAC_CFG_ACS              BIT(20)
 #define DWCEQOS_MAC_CFG_JD               BIT(17)
 #define DWCEQOS_MAC_CFG_JE               BIT(16)
@@ -344,8 +345,12 @@
 #define DWCEQOS_MAC_HW_FEATURE0_MIISEL   BIT(0)
 
 #define DWCEQOS_MAC_HW_FEATURE1_TSOEN    BIT(18)
-#define DWCEQOS_MAC_HW_FEATURE1_TXFIFOSIZE(x) ((128 << ((x) & 0x7c0)) >> 6)
-#define DWCEQOS_MAC_HW_FEATURE1_RXFIFOSIZE(x)  (128 << ((x) & 0x1f))
+#define DWCEQOS_MAC_HW_FEATURE1_ADDR64_MASK (0x3 << 14)
+#define DWCEQOS_MAC_HW_FEATURE1_ADDR64_32 (0 << 14)
+#define DWCEQOS_MAC_HW_FEATURE1_ADDR64_40 (1 << 14)
+#define DWCEQOS_MAC_HW_FEATURE1_ADDR64_48 (2 << 14)
+#define DWCEQOS_MAC_HW_FEATURE1_TXFIFOSIZE(x) (128 << ((((x) & 0x7c0)) >> 6))
+#define DWCEQOS_MAC_HW_FEATURE1_RXFIFOSIZE(x) (128 << ((x) & 0x1f))
 
 #define DWCEQOS_MAX_PERFECT_ADDRESSES(feature1) \
 	(1 + (((feature1) & 0x1fc0000) >> 18))
@@ -583,12 +588,17 @@ struct dwceqos_flowcontrol {
 
 struct net_local {
 	void __iomem *baseaddr;
-	struct clk *phy_ref_clk;
-	struct clk *apb_pclk;
+	struct clk *clk_ptp_ref;
+	struct clk *clk_slave;
+	struct clk *clk_master;
+	struct clk *clk_rx;
+	struct clk *clk_tx;
+	struct reset_control *rst;
+	struct gpio_desc *reset;
 
 	struct device_node *phy_node;
 	struct net_device *ndev;
-	struct platform_device *pdev;
+	struct device *dev;
 
 	u32 msg_enable;
 
@@ -599,6 +609,7 @@ struct net_local {
 	phy_interface_t phy_interface;
 	struct mii_bus *mii_bus;
 
+	struct phy_device *phy;
 	unsigned int link;
 	unsigned int speed;
 	unsigned int duplex;
@@ -636,6 +647,7 @@ struct net_local {
 	struct dwceqos_bus_cfg bus_cfg;
 	bool en_tx_lpi_clockgating;
 
+	unsigned int address_width;
 	int eee_enabled;
 	int eee_active;
 	int csr_val;
@@ -669,10 +681,16 @@ static void dwceqos_set_tx_flowcontrol(struct net_local *lp, bool enable);
 
 static void dwceqos_reset_state(struct net_local *lp);
 
-#define dwceqos_read(lp, reg)						\
-	readl_relaxed(((void __iomem *)((lp)->baseaddr)) + (reg))
-#define dwceqos_write(lp, reg, val)					\
-	writel_relaxed((val), ((void __iomem *)((lp)->baseaddr)) + (reg))
+static inline u32 dwceqos_read(const struct net_local *lp, unsigned int offset)
+{
+	return readl_relaxed(lp->baseaddr + offset);
+}
+
+static inline void dwceqos_write(const struct net_local *lp, unsigned int offset,
+				 u32 value)
+{
+	writel_relaxed(value, lp->baseaddr + offset);
+}
 
 static void dwceqos_reset_state(struct net_local *lp)
 {
@@ -737,7 +755,7 @@ static void print_status(struct net_local *lp)
 
 static void dwceqos_mdio_set_csr(struct net_local *lp)
 {
-	int rate = clk_get_rate(lp->apb_pclk);
+	int rate = clk_get_rate(lp->clk_master);
 
 	if (rate <= 20000000)
 		lp->csr_val = DWCEQOS_MAC_MDIO_ADDR_CR_20;
@@ -828,7 +846,7 @@ static int dwceqos_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	case SIOCSMIIREG:
 		return phy_mii_ioctl(phydev, rq, cmd);
 	default:
-		dev_info(&lp->pdev->dev, "ioctl %X not implemented.\n", cmd);
+		dev_info(lp->dev, "ioctl %X not implemented.\n", cmd);
 		return -EOPNOTSUPP;
 	}
 }
@@ -873,11 +891,70 @@ static void dwceqos_link_up(struct net_local *lp)
 	}
 }
 
+#define REG_DWCEQOS_SDMEMCOMPPADCTRL 0x8800
+#define  DWCEQOS_SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD BIT(31)
+
+#define REG_DWCEQOS_AUTO_CAL_CONFIG 0x8804
+#define  DWCEQOS_AUTO_CAL_CONFIG_START BIT(31)
+#define  DWCEQOS_AUTO_CAL_CONFIG_ENABLE BIT(29)
+
+#define REG_DWCEQOS_AUTO_CAL_STATUS 0x880c
+#define  DWCEQOS_AUTO_CAL_STATUS_ACTIVE BIT(31)
+
+static void dwceqos_calibrate_pads(struct net_local *lp)
+{
+	unsigned int i;
+	u32 value;
+
+	value = dwceqos_read(lp, REG_DWCEQOS_SDMEMCOMPPADCTRL);
+	value |= DWCEQOS_SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD;
+	dwceqos_write(lp, REG_DWCEQOS_SDMEMCOMPPADCTRL, value);
+
+	udelay(1);
+
+	value = dwceqos_read(lp, REG_DWCEQOS_AUTO_CAL_CONFIG);
+	value |= DWCEQOS_AUTO_CAL_CONFIG_START | DWCEQOS_AUTO_CAL_CONFIG_ENABLE;
+	dwceqos_write(lp, REG_DWCEQOS_AUTO_CAL_CONFIG, value);
+
+	for (i = 0; i <= 10; i++) {
+		value = dwceqos_read(lp, REG_DWCEQOS_AUTO_CAL_STATUS);
+		if (value & DWCEQOS_AUTO_CAL_STATUS_ACTIVE)
+			break;
+
+		udelay(1);
+	}
+
+	if ((value & DWCEQOS_AUTO_CAL_STATUS_ACTIVE) == 0) {
+		netdev_err(lp->ndev, "calibration did not start\n");
+		goto failed;
+	}
+
+	for (i = 0; i <= 10; i++) {
+		value = dwceqos_read(lp, REG_DWCEQOS_AUTO_CAL_STATUS);
+		if ((value & DWCEQOS_AUTO_CAL_STATUS_ACTIVE) == 0)
+			break;
+
+		udelay(20);
+	}
+
+	if (value & DWCEQOS_AUTO_CAL_STATUS_ACTIVE) {
+		netdev_err(lp->ndev, "calibrate didn't finish\n");
+		goto failed;
+	}
+
+failed:
+	value = dwceqos_read(lp, REG_DWCEQOS_SDMEMCOMPPADCTRL);
+	value &= ~DWCEQOS_SDMEMCOMPPADCTRL_PAD_E_INPUT_OR_E_PWRD;
+	dwceqos_write(lp, REG_DWCEQOS_SDMEMCOMPPADCTRL, value);
+}
+
 static void dwceqos_set_speed(struct net_local *lp)
 {
 	struct net_device *ndev = lp->ndev;
 	struct phy_device *phydev = ndev->phydev;
+	unsigned long rate = 125000000;
 	u32 regval;
+	int err;
 
 	regval = dwceqos_read(lp, REG_DWCEQOS_MAC_CFG);
 	regval &= ~(DWCEQOS_MAC_CFG_PS | DWCEQOS_MAC_CFG_FES |
@@ -887,15 +964,29 @@ static void dwceqos_set_speed(struct net_local *lp)
 		regval |= DWCEQOS_MAC_CFG_DM;
 	if (phydev->speed == SPEED_10) {
 		regval |= DWCEQOS_MAC_CFG_PS;
+		rate = 2500000;
 	} else if (phydev->speed == SPEED_100) {
 		regval |= DWCEQOS_MAC_CFG_PS |
 			DWCEQOS_MAC_CFG_FES;
+		rate = 25000000;
 	} else if (phydev->speed != SPEED_1000) {
 		netdev_err(lp->ndev,
 			   "unknown PHY speed %d\n",
 			   phydev->speed);
 		return;
 	}
+
+	dwceqos_calibrate_pads(lp);
+
+	err = clk_set_rate(lp->clk_tx, rate);
+	if (err < 0)
+		netdev_err(lp->ndev, "failed to set TX rate to %lu Hz: %d\n",
+			   rate, err);
+
+	err = clk_set_rate(lp->clk_rx, rate);
+	if (err < 0)
+		netdev_err(lp->ndev, "failed to set RX rate to %lu Hz: %d\n",
+			   rate, err);
 
 	dwceqos_write(lp, REG_DWCEQOS_MAC_CFG, regval);
 }
@@ -940,6 +1031,9 @@ static void dwceqos_adjust_link(struct net_device *ndev)
 			dwceqos_set_tx_flowcontrol(lp, lp->flowcontrol.tx);
 			lp->flowcontrol.tx_current = lp->flowcontrol.tx;
 		}
+		/* XXX */
+		dwceqos_write(lp, REG_DWCEQOS_MAC_RXQ0_CTRL0, 0x002);
+		dwceqos_write(lp, REG_DWCEQOS_MAC_RX_FLOW_CTRL, 0x1);
 	}
 
 	if (phydev->link != lp->link) {
@@ -985,6 +1079,7 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	phydev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
 			     SUPPORTED_Asym_Pause;
 
+	lp->phy     = phydev;
 	lp->link    = 0;
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
@@ -1125,16 +1220,16 @@ static int dwceqos_descriptor_init(struct net_local *lp)
 			&lp->rx_descs_addr, GFP_KERNEL);
 	if (!lp->rx_descs)
 		goto err_out;
-	lp->rx_descs_tail_addr = lp->rx_descs_addr +
-		sizeof(struct dwceqos_dma_desc) * DWCEQOS_RX_DCNT;
+	lp->rx_descs_tail_addr = /*lp->rx_descs_addr +*/
+		size - sizeof(struct dwceqos_dma_desc);
 
 	size = DWCEQOS_TX_DCNT * sizeof(struct dwceqos_dma_desc);
 	lp->tx_descs = dma_alloc_coherent(lp->ndev->dev.parent, size,
 			&lp->tx_descs_addr, GFP_KERNEL);
 	if (!lp->tx_descs)
 		goto err_out;
-	lp->tx_descs_tail_addr = lp->tx_descs_addr +
-		sizeof(struct dwceqos_dma_desc) * DWCEQOS_TX_DCNT;
+	lp->tx_descs_tail_addr = /*lp->tx_descs_addr + */
+		size - sizeof(struct dwceqos_dma_desc);
 
 	/* Initialize RX Ring Descriptors and buffers */
 	for (i = 0; i < DWCEQOS_RX_DCNT; ++i) {
@@ -1233,7 +1328,9 @@ static int dwceqos_mii_init(struct net_local *lp)
 	struct resource res;
 	struct device_node *mdionode;
 
-	mdionode = of_get_child_by_name(lp->pdev->dev.of_node, "mdio");
+	pr_info("> %s(lp=%p)\n", __func__, lp);
+
+	mdionode = of_get_child_by_name(lp->dev->of_node, "mdio");
 
 	if (!mdionode)
 		return 0;
@@ -1248,20 +1345,22 @@ static int dwceqos_mii_init(struct net_local *lp)
 	lp->mii_bus->read  = &dwceqos_mdio_read;
 	lp->mii_bus->write = &dwceqos_mdio_write;
 	lp->mii_bus->priv = lp;
-	lp->mii_bus->parent = &lp->pdev->dev;
+	lp->mii_bus->parent = lp->dev;
 
-	of_address_to_resource(lp->pdev->dev.of_node, 0, &res);
+	of_address_to_resource(lp->dev->of_node, 0, &res);
 	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%.8llx",
 		 (unsigned long long)res.start);
 	if (of_mdiobus_register(lp->mii_bus, mdionode))
 		goto err_out_free_mdiobus;
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 
 err_out_free_mdiobus:
 	mdiobus_free(lp->mii_bus);
 err_out:
 	of_node_put(mdionode);
+	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -1344,10 +1443,8 @@ static irqreturn_t dwceqos_interrupt(int irq, void *dev_id)
 {
 	struct net_device *ndev = dev_id;
 	struct net_local *lp = netdev_priv(ndev);
-
-	u32 cause;
-	u32 dma_status;
 	irqreturn_t ret = IRQ_NONE;
+	u32 cause, dma_status;
 
 	cause = dwceqos_read(lp, REG_DWCEQOS_DMA_IS);
 	/* DMA Channel 0 Interrupt */
@@ -1392,6 +1489,7 @@ static irqreturn_t dwceqos_interrupt(int irq, void *dev_id)
 		dwceqos_mac_interrupt(lp);
 		ret = IRQ_HANDLED;
 	}
+
 	return ret;
 }
 
@@ -1480,7 +1578,7 @@ static void dwceqos_configure_flow_control(struct net_local *lp)
 
 static void dwceqos_configure_clock(struct net_local *lp)
 {
-	unsigned long rate_mhz = clk_get_rate(lp->apb_pclk) / 1000000;
+	unsigned long rate_mhz = clk_get_rate(lp->clk_master) / 1000000;
 
 	BUG_ON(!rate_mhz);
 
@@ -1499,6 +1597,9 @@ static void dwceqos_configure_bus(struct net_local *lp)
 	 */
 
 	sysbus_reg = DWCEQOS_DMA_SYSBUS_MODE_AAL;
+
+	if (lp->address_width > 32)
+		sysbus_reg |= DWCEQOS_DMA_SYSBUS_MODE_EAME;
 
 	if (lp->bus_cfg.en_lpi)
 		sysbus_reg |= DWCEQOS_DMA_SYSBUS_MODE_EN_LPI;
@@ -1556,6 +1657,19 @@ static void dwceqos_init_hw(struct net_local *lp)
 	/* Initialize DMA Channel 0 */
 	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_TXDESC_LEN, DWCEQOS_TX_DCNT - 1);
 	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_RXDESC_LEN, DWCEQOS_RX_DCNT - 1);
+
+	if (lp->address_width > 32) {
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+		dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_TXDESC_LIST_HIGH,
+			      (u32)(lp->tx_descs_addr >> 32));
+		dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_RXDESC_LIST_HIGH,
+			      (u32)(lp->rx_descs_addr >> 32));
+#else
+		dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_TXDESC_LIST_HIGH, 0);
+		dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_RXDESC_LIST_HIGH, 0);
+#endif
+	}
+
 	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_TXDESC_LIST,
 		      (u32)lp->tx_descs_addr);
 	dwceqos_write(lp, REG_DWCEQOS_DMA_CH0_RXDESC_LIST,
@@ -1628,7 +1742,9 @@ static void dwceqos_init_hw(struct net_local *lp)
 	dwceqos_write(lp, REG_DWCEQOS_MAC_IE, 0);
 
 	dwceqos_write(lp, REG_DWCEQOS_MAC_CFG, DWCEQOS_MAC_CFG_IPC |
-		DWCEQOS_MAC_CFG_DM | DWCEQOS_MAC_CFG_TE | DWCEQOS_MAC_CFG_RE);
+					       DWCEQOS_MAC_CFG_DM |
+					       DWCEQOS_MAC_CFG_ACS |
+					       DWCEQOS_MAC_CFG_CST);
 
 	/* Start TX DMA */
 	regval = dwceqos_read(lp, REG_DWCEQOS_DMA_CH0_TX_CTRL);
@@ -1866,13 +1982,11 @@ static inline int dwceqos_probe_config_dt(struct platform_device *pdev)
 	of_property_read_u32(np, "snps,txpbl", &bus_cfg->tx_pbl);
 	of_property_read_u32(np, "snps,rxpbl", &bus_cfg->rx_pbl);
 
-	netdev_dbg(ndev, "BusCfg: lpi:%u wr:%u rr:%u bm:%X rxpbl:%u txpbl:%d\n",
-		   bus_cfg->en_lpi,
-		   bus_cfg->write_requests,
-		   bus_cfg->read_requests,
-		   bus_cfg->burst_map,
-		   bus_cfg->rx_pbl,
-		   bus_cfg->tx_pbl);
+	dev_dbg(&pdev->dev,
+		"BusCfg: lpi:%u wr:%u rr:%u bm:%X rxpbl:%u txpbl:%d\n",
+		bus_cfg->en_lpi, bus_cfg->write_requests,
+		bus_cfg->read_requests, bus_cfg->burst_map, bus_cfg->rx_pbl,
+		bus_cfg->tx_pbl);
 
 	return 0;
 }
@@ -2533,7 +2647,7 @@ dwceqos_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *ed)
 {
 	const struct net_local *lp = netdev_priv(ndev);
 
-	strcpy(ed->driver, lp->pdev->dev.driver->name);
+	strcpy(ed->driver, lp->dev->driver->name);
 	strcpy(ed->version, DRIVER_VERSION);
 }
 
@@ -2779,6 +2893,7 @@ static const struct net_device_ops netdev_ops = {
 
 static const struct of_device_id dwceq_of_match[] = {
 	{ .compatible = "snps,dwc-qos-ethernet-4.10", },
+	{ .compatible = "nvidia,tegra186-eqos", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dwceq_of_match);
@@ -2806,31 +2921,55 @@ static int dwceqos_probe(struct platform_device *pdev)
 
 	lp = netdev_priv(ndev);
 	lp->ndev = ndev;
-	lp->pdev = pdev;
+	lp->dev = &pdev->dev;
 	lp->msg_enable = netif_msg_init(debug, DWCEQOS_MSG_DEFAULT);
 
 	spin_lock_init(&lp->tx_lock);
 	spin_lock_init(&lp->hw_lock);
 	spin_lock_init(&lp->stats_lock);
 
-	lp->apb_pclk = devm_clk_get(&pdev->dev, "apb_pclk");
-	if (IS_ERR(lp->apb_pclk)) {
-		dev_err(&pdev->dev, "apb_pclk clock not found.\n");
-		ret = PTR_ERR(lp->apb_pclk);
+	lp->clk_master = devm_clk_get(&pdev->dev, "master");
+	if (IS_ERR(lp->clk_master)) {
+		dev_err(&pdev->dev, "master bus clock not found.\n");
+		ret = PTR_ERR(lp->clk_master);
 		goto err_out_free_netdev;
 	}
 
-	ret = clk_prepare_enable(lp->apb_pclk);
+	ret = clk_prepare_enable(lp->clk_master);
 	if (ret) {
-		dev_err(&pdev->dev, "Unable to enable APER clock.\n");
+		dev_err(&pdev->dev, "Unable to enable master bus clock.\n");
 		goto err_out_free_netdev;
 	}
+
+	lp->clk_slave = devm_clk_get(&pdev->dev, "slave");
+	if (IS_ERR(lp->clk_slave)) {
+		dev_err(&pdev->dev, "slave bus clock not found.\n");
+		ret = PTR_ERR(lp->clk_slave);
+		goto err_out_clk_dis_master;
+	}
+
+	ret = clk_prepare_enable(lp->clk_slave);
+	if (ret) {
+		dev_err(&pdev->dev, "Unable to enable slave bus clock.\n");
+		goto err_out_clk_dis_master;
+	}
+
+	lp->rst = devm_reset_control_get(&pdev->dev, "eqos");
+	if (IS_ERR(lp->rst)) {
+		dev_err(&pdev->dev, "unable to get reset\n");
+		goto err_out_clk_dis_slave;
+	}
+
+	reset_control_assert(lp->rst);
+	usleep_range(2000, 4000);
+	reset_control_deassert(lp->rst);
+	usleep_range(2000, 4000);
 
 	lp->baseaddr = devm_ioremap_resource(&pdev->dev, r_mem);
 	if (IS_ERR(lp->baseaddr)) {
 		dev_err(&pdev->dev, "failed to map baseaddress.\n");
 		ret = PTR_ERR(lp->baseaddr);
-		goto err_out_clk_dis_aper;
+		goto err_out_rst_assert;
 	}
 
 	ndev->irq = platform_get_irq(pdev, 0);
@@ -2853,19 +2992,70 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (lp->feature0 & DWCEQOS_MAC_HW_FEATURE0_RXCOESEL)
 		ndev->hw_features |= NETIF_F_RXCSUM;
 
-	ndev->features = ndev->hw_features;
+	switch (lp->feature1 & DWCEQOS_MAC_HW_FEATURE1_ADDR64_MASK) {
+	case DWCEQOS_MAC_HW_FEATURE1_ADDR64_32:
+		lp->address_width = 32;
+		break;
 
-	lp->phy_ref_clk = devm_clk_get(&pdev->dev, "phy_ref_clk");
-	if (IS_ERR(lp->phy_ref_clk)) {
-		dev_err(&pdev->dev, "phy_ref_clk clock not found.\n");
-		ret = PTR_ERR(lp->phy_ref_clk);
-		goto err_out_clk_dis_aper;
+	case DWCEQOS_MAC_HW_FEATURE1_ADDR64_40:
+		lp->address_width = 40;
+		break;
+
+	case DWCEQOS_MAC_HW_FEATURE1_ADDR64_48:
+		lp->address_width = 48;
+		break;
+
+	default:
+		WARN(1, "unsupported address width, defaulting to 32\n");
+		lp->address_width = 32;
+		break;
 	}
 
-	ret = clk_prepare_enable(lp->phy_ref_clk);
+	lp->address_width = 32;
+
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(lp->address_width));
+
+	ndev->features = ndev->hw_features;
+
+	lp->clk_ptp_ref = devm_clk_get(&pdev->dev, "ptp-ref");
+	if (IS_ERR(lp->clk_ptp_ref)) {
+		dev_err(&pdev->dev, "ptp_ref clock not found.\n");
+		ret = PTR_ERR(lp->clk_ptp_ref);
+		goto err_out_rst_assert;
+	}
+
+	clk_set_rate(lp->clk_ptp_ref, 125000000);
+
+	ret = clk_prepare_enable(lp->clk_ptp_ref);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to enable device clock.\n");
-		goto err_out_clk_dis_aper;
+		goto err_out_rst_assert;
+	}
+
+	lp->clk_rx = devm_clk_get(&pdev->dev, "rx");
+	if (IS_ERR(lp->clk_rx)) {
+		dev_err(&pdev->dev, "rx clock not found\n");
+		ret = PTR_ERR(lp->clk_rx);
+		goto err_out_clk_dis_ptp;
+	}
+
+	ret = clk_prepare_enable(lp->clk_rx);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to enable rx clock\n");
+		goto err_out_clk_dis_ptp;
+	}
+
+	lp->clk_tx = devm_clk_get(&pdev->dev, "tx");
+	if (IS_ERR(lp->clk_tx)) {
+		dev_err(&pdev->dev, "tx clock not found\n");
+		ret = PTR_ERR(lp->clk_tx);
+		goto err_out_clk_dis_rx;
+	}
+
+	ret = clk_prepare_enable(lp->clk_tx);
+	if (ret) {
+		dev_err(&pdev->dev, "unable to enable tx clock\n");
+		goto err_out_clk_dis_rx;
 	}
 
 	lp->phy_node = of_parse_phandle(pdev->dev.of_node, "phy-handle", 0);
@@ -2873,16 +3063,23 @@ static int dwceqos_probe(struct platform_device *pdev)
 		ret = of_phy_register_fixed_link(pdev->dev.of_node);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "invalid fixed-link");
-			goto err_out_clk_dis_phy;
+			goto err_out_clk_dis_tx;
 		}
 
 		lp->phy_node = of_node_get(pdev->dev.of_node);
 	}
 
+	lp->reset = devm_gpiod_get(&pdev->dev, "phy-reset", GPIOD_OUT_LOW);
+	if (IS_ERR(lp->reset)) {
+		dev_err(&pdev->dev, "failed to get PHY reset GPIO: %ld\n",
+			PTR_ERR(lp->reset));
+		goto err_out_clk_dis_tx;
+	}
+
 	ret = of_get_phy_mode(pdev->dev.of_node);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "error in getting phy i/f\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 
 	lp->phy_interface = ret;
@@ -2890,14 +3087,14 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = dwceqos_mii_init(lp);
 	if (ret) {
 		dev_err(&pdev->dev, "error in dwceqos_mii_init\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 
 	ret = dwceqos_mii_probe(ndev);
 	if (ret != 0) {
 		netdev_err(ndev, "mii_probe fail.\n");
 		ret = -ENXIO;
-		goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 
 	dwceqos_set_umac_addr(lp, lp->ndev->dev_addr, 0);
@@ -2914,7 +3111,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = dwceqos_probe_config_dt(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to retrieve DT, error %d\n", ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 	dev_info(&pdev->dev, "pdev->id %d, baseaddr 0x%08lx, irq %d\n",
 		 pdev->id, ndev->base_addr, ndev->irq);
@@ -2924,26 +3121,34 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Unable to request IRQ %d, error %d\n",
 			ndev->irq, ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 
 	if (netif_msg_probe(lp))
-		netdev_dbg(ndev, "net_local@%p\n", lp);
+		dev_dbg(&pdev->dev, "net_local@%p\n", lp);
 
 	netif_napi_add(ndev, &lp->napi, dwceqos_rx_poll, NAPI_POLL_WEIGHT);
 
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
-			goto err_out_clk_dis_phy;
+		goto err_out_clk_dis_tx;
 	}
 
 	return 0;
 
-err_out_clk_dis_phy:
-	clk_disable_unprepare(lp->phy_ref_clk);
-err_out_clk_dis_aper:
-	clk_disable_unprepare(lp->apb_pclk);
+err_out_clk_dis_tx:
+	clk_disable_unprepare(lp->clk_tx);
+err_out_clk_dis_rx:
+	clk_disable_unprepare(lp->clk_rx);
+err_out_clk_dis_ptp:
+	clk_disable_unprepare(lp->clk_ptp_ref);
+err_out_rst_assert:
+	reset_control_assert(lp->rst);
+err_out_clk_dis_slave:
+	clk_disable_unprepare(lp->clk_slave);
+err_out_clk_dis_master:
+	clk_disable_unprepare(lp->clk_master);
 err_out_free_netdev:
 	of_node_put(lp->phy_node);
 	free_netdev(ndev);
@@ -2966,8 +3171,12 @@ static int dwceqos_remove(struct platform_device *pdev)
 
 		unregister_netdev(ndev);
 
-		clk_disable_unprepare(lp->phy_ref_clk);
-		clk_disable_unprepare(lp->apb_pclk);
+		clk_disable_unprepare(lp->clk_tx);
+		clk_disable_unprepare(lp->clk_rx);
+		clk_disable_unprepare(lp->clk_ptp_ref);
+		reset_control_assert(lp->rst);
+		clk_disable_unprepare(lp->clk_slave);
+		clk_disable_unprepare(lp->clk_master);
 
 		free_netdev(ndev);
 	}

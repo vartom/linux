@@ -1,6 +1,5 @@
-#define DEBUG
-
 #include <linux/clk.h>
+#include <linux/clk-provider.h> /* XXX */
 #include <linux/component.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -16,9 +15,11 @@
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
+#include "../drm.h"
 #include "display.h"
 
 struct tegra186_nvdisplay {
+	struct clk *clk_host1x;
 	struct clk *clk_disp;
 	struct clk *clk_dsc;
 	struct clk *clk_hub;
@@ -397,10 +398,24 @@ static int tegra186_nvdisplay_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+	nvdisplay->clk_host1x = devm_clk_get(&pdev->dev, "host1x");
+	if (IS_ERR(nvdisplay->clk_host1x)) {
+		err = PTR_ERR(nvdisplay->clk_host1x);
+		goto out;
+	}
+
+	clk_prepare_enable(nvdisplay->clk_host1x);
+
 	nvdisplay->clk_disp = devm_clk_get(&pdev->dev, "disp");
 	if (IS_ERR(nvdisplay->clk_disp)) {
 		err = PTR_ERR(nvdisplay->clk_disp);
 		goto out;
+	}
+
+	if (1) {
+		struct clk *clk = clk_get_parent(nvdisplay->clk_disp);
+
+		dev_dbg(&pdev->dev, "  clk: %s parent: %s\n", __clk_get_name(nvdisplay->clk_disp), __clk_get_name(clk));
 	}
 
 	nvdisplay->clk_dsc = devm_clk_get(&pdev->dev, "dsc");
@@ -427,9 +442,14 @@ static int tegra186_nvdisplay_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, nvdisplay);
 	pm_runtime_enable(&pdev->dev);
 
+	err = pm_runtime_get_sync(&pdev->dev); /* XXX */
+	dev_dbg(&pdev->dev, "pm_runtime_get_sync(): %d\n", err);
+
+	/* add display controllers */
 	for_each_available_child_of_node(pdev->dev.of_node, np)
 		component_match_add(&pdev->dev, &match, compare_of, np);
 
+	/* add encoder/connectors */
 	for_each_available_child_of_node(pdev->dev.of_node, np) {
 		struct device_node *output;
 		unsigned int i;
@@ -469,6 +489,7 @@ static int tegra186_nvdisplay_remove(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "> %s(pdev=%p)\n", __func__, pdev);
 
 	component_master_del(&pdev->dev, &tegra186_nvdisplay_master_ops);
+	pm_runtime_put(&pdev->dev); /* XXX */
 	pm_runtime_disable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "< %s() = %d\n", __func__, err);
@@ -531,9 +552,11 @@ out:
 	return err;
 }
 
-static SIMPLE_DEV_PM_OPS(tegra186_nvdisplay_pm_ops,
-			 tegra186_nvdisplay_suspend,
-			 tegra186_nvdisplay_resume);
+static const struct dev_pm_ops tegra186_nvdisplay_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra186_nvdisplay_suspend,
+			   tegra186_nvdisplay_resume,
+			   NULL)
+};
 
 static const struct of_device_id tegra186_nvdisplay_of_match[] = {
 	{ .compatible = "nvidia,tegra186-nvdisplay" },

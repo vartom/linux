@@ -372,12 +372,17 @@ static int drm_fbdev_cma_defio_init(struct fb_info *fbi,
 
 static void drm_fbdev_cma_defio_fini(struct fb_info *fbi)
 {
+	pr_info("> %s(fbi=%p)\n", __func__, fbi);
+
 	if (!fbi->fbdefio)
 		return;
 
+	pr_info("  cleaning up...\n");
 	fb_deferred_io_cleanup(fbi);
+	pr_info("  freeing...\n");
 	kfree(fbi->fbdefio);
 	kfree(fbi->fbops);
+	pr_info("< %s()\n", __func__);
 }
 
 /*
@@ -453,6 +458,8 @@ int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
 		if (ret)
 			goto err_cma_destroy;
 	}
+
+	pr_info("helper->fbdev: %p/%p\n", helper->fbdev, fbi);
 
 	return 0;
 

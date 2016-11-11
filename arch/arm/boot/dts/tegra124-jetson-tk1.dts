@@ -1404,6 +1404,10 @@
 		status = "okay";
 	};
 
+	pwm@7000a000 {
+		status = "okay";
+	};
+
 	/* Expansion GEN1_I2C_*, mini-PCIe I2C, on-board components */
 	i2c@7000c000 {
 		status = "okay";

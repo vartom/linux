@@ -11,7 +11,10 @@
  * more details.
  */
 
+#define DEBUG
+
 #include <linux/clk/tegra.h>
+#include <linux/genalloc.h>
 #include <linux/mailbox_client.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -195,7 +198,7 @@ static ssize_t __tegra_bpmp_channel_read(struct tegra_bpmp_channel *channel,
 					 void *data, size_t size)
 {
 	if (data && size > 0)
-		memcpy_fromio(data, channel->ib->data, size);
+		memcpy(data, channel->ib->data, size);
 
 	return tegra_ivc_read_advance(channel->ivc);
 }
@@ -230,7 +233,7 @@ static ssize_t __tegra_bpmp_channel_write(struct tegra_bpmp_channel *channel,
 	channel->ob->flags = flags;
 
 	if (data && size > 0)
-		memcpy_toio(channel->ob->data, data, size);
+		memcpy(channel->ob->data, data, size);
 
 	return tegra_ivc_write_advance(channel->ivc);
 }
@@ -402,7 +405,7 @@ static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
 	frame->code = code;
 
 	if (data && size > 0)
-		memcpy_toio(frame->data, data, size);
+		memcpy(frame->data, data, size);
 
 	err = tegra_ivc_write_advance(channel->ivc);
 	if (WARN_ON(err < 0))
@@ -631,8 +634,7 @@ static int tegra_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 				   unsigned int index)
 {
 	size_t message_size, queue_size;
-	void __iomem *rx_base;
-	void __iomem *tx_base;
+	unsigned int offset;
 	int err;
 
 	channel->ivc = devm_kzalloc(bpmp->dev, sizeof(*channel->ivc),
@@ -642,12 +644,13 @@ static int tegra_bpmp_channel_init(struct tegra_bpmp_channel *channel,
 
 	message_size = tegra_ivc_align(MSG_MIN_SZ);
 	queue_size = tegra_ivc_total_queue_size(message_size);
+	offset = queue_size * index;
 
-	rx_base = bpmp->rx_base + queue_size * index;
-	tx_base = bpmp->tx_base + queue_size * index;
-
-	err = tegra_ivc_init(channel->ivc, bpmp->dev, rx_base, tx_base, 1,
-			     message_size, tegra_bpmp_ivc_notify, bpmp);
+	err = tegra_ivc_init(channel->ivc, NULL,
+			     bpmp->rx.virt + offset, bpmp->rx.phys + offset,
+			     bpmp->tx.virt + offset, bpmp->tx.phys + offset,
+			     1, message_size, tegra_bpmp_ivc_notify,
+			     bpmp);
 	if (err < 0) {
 		dev_err(bpmp->dev, "failed to setup IVC for channel %u: %d\n",
 			index, err);
@@ -675,48 +678,10 @@ static void tegra_bpmp_channel_cleanup(struct tegra_bpmp_channel *channel)
 	tegra_ivc_cleanup(channel->ivc);
 }
 
-static int tegra_bpmp_init_powergates(struct tegra_bpmp *bpmp)
-{
-	struct mrq_pg_read_state_response response;
-	struct mrq_pg_read_state_request request;
-	struct tegra_bpmp_message msg;
-	unsigned int i;
-	int err;
-
-	dev_dbg(bpmp->dev, "powergates:\n");
-
-	for (i = 0; i < 32; i++) {
-		memset(&request, 0, sizeof(request));
-		request.partition_id = i;
-
-		memset(&response, 0, sizeof(response));
-
-		memset(&msg, 0, sizeof(msg));
-		msg.mrq = MRQ_PG_READ_STATE;
-		msg.tx.data = &request;
-		msg.tx.size = sizeof(request);
-		msg.rx.data = &response;
-		msg.rx.size = sizeof(response);
-
-		err = tegra_bpmp_transfer(bpmp, &msg);
-		if (err < 0) {
-			dev_err(bpmp->dev, "failed to transfer message: %d\n", err);
-			continue;
-		}
-
-		dev_dbg(bpmp->dev, "  %u: %x (%x)\n", i, response.logic_state,
-			response.sram_state);
-	}
-
-	return 0;
-}
-
 static int tegra_bpmp_probe(struct platform_device *pdev)
 {
 	struct tegra_bpmp_channel *channel;
 	struct tegra_bpmp *bpmp;
-	struct device_node *np;
-	struct resource res;
 	unsigned int i;
 	char tag[32];
 	size_t size;
@@ -729,27 +694,31 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	bpmp->soc = of_device_get_match_data(&pdev->dev);
 	bpmp->dev = &pdev->dev;
 
-	np = of_parse_phandle(pdev->dev.of_node, "shmem", 0);
-	if (!np)
-		return -ENOENT;
+	bpmp->tx.pool = of_gen_pool_get(pdev->dev.of_node, "shmem", 0);
+	if (!bpmp->tx.pool) {
+		dev_err(&pdev->dev, "TX shmem pool not found\n");
+		return -ENOMEM;
+	}
 
-	of_address_to_resource(np, 0, &res);
-	of_node_put(np);
+	bpmp->tx.virt = gen_pool_dma_alloc(bpmp->tx.pool, 4096, &bpmp->tx.phys);
+	if (!bpmp->tx.virt) {
+		dev_err(&pdev->dev, "failed to allocate from TX pool\n");
+		return -ENOMEM;
+	}
 
-	bpmp->tx_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(bpmp->tx_base))
-		return PTR_ERR(bpmp->tx_base);
+	bpmp->rx.pool = of_gen_pool_get(pdev->dev.of_node, "shmem", 1);
+	if (!bpmp->rx.pool) {
+		dev_err(&pdev->dev, "RX shmem pool not found\n");
+		err = -ENOMEM;
+		goto free_tx;
+	}
 
-	np = of_parse_phandle(pdev->dev.of_node, "shmem", 1);
-	if (!np)
-		return -ENOENT;
-
-	of_address_to_resource(np, 0, &res);
-	of_node_put(np);
-
-	bpmp->rx_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(bpmp->rx_base))
-		return PTR_ERR(bpmp->rx_base);
+	bpmp->rx.virt = gen_pool_dma_alloc(bpmp->rx.pool, 4096, &bpmp->rx.phys);
+	if (!bpmp->rx.pool) {
+		dev_err(&pdev->dev, "failed to allocate from RX pool\n");
+		err = -ENOMEM;
+		goto free_tx;
+	}
 
 	INIT_LIST_HEAD(&bpmp->mrqs);
 	spin_lock_init(&bpmp->lock);
@@ -760,12 +729,16 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 	size = BITS_TO_LONGS(bpmp->threaded.count) * sizeof(long);
 
 	bpmp->threaded.allocated = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!bpmp->threaded.allocated)
-		return -ENOMEM;
+	if (!bpmp->threaded.allocated) {
+		err = -ENOMEM;
+		goto free_rx;
+	}
 
 	bpmp->threaded.busy = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
-	if (!bpmp->threaded.busy)
-		return -ENOMEM;
+	if (!bpmp->threaded.busy) {
+		err = -ENOMEM;
+		goto free_rx;
+	}
 
 	bpmp->num_channels = bpmp->soc->channels.cpu_tx.count +
 			     bpmp->soc->channels.thread.count +
@@ -773,8 +746,10 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	bpmp->channels = devm_kcalloc(&pdev->dev, bpmp->num_channels,
 				      sizeof(*channel), GFP_KERNEL);
-	if (!bpmp->channels)
-		return -ENOMEM;
+	if (!bpmp->channels) {
+		err = -ENOMEM;
+		goto free_rx;
+	}
 
 	/* message channel initialization */
 	for (i = 0; i < bpmp->num_channels; i++) {
@@ -824,6 +799,10 @@ static int tegra_bpmp_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "firmware: %s\n", tag);
 
+	err = of_platform_default_populate(pdev->dev.of_node, NULL, &pdev->dev);
+	if (err < 0)
+		goto free_mrq;
+
 	err = tegra_bpmp_init_clocks(bpmp);
 	if (err < 0)
 		goto free_mrq;
@@ -847,7 +826,10 @@ free_mbox:
 cleanup_channels:
 	while (i--)
 		tegra_bpmp_channel_cleanup(&bpmp->channels[i]);
-
+free_rx:
+	gen_pool_free(bpmp->rx.pool, (unsigned long)bpmp->rx.virt, 4096);
+free_tx:
+	gen_pool_free(bpmp->tx.pool, (unsigned long)bpmp->tx.virt, 4096);
 	return err;
 }
 

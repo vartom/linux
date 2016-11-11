@@ -1,8 +1,179 @@
 /dts-v1/;
 
+#include <dt-bindings/gpio/tegra186-gpio.h>
+#include <dt-bindings/input/linux-event-codes.h>
+
 #include "tegra186-p3310.dtsi"
 
 / {
 	model = "NVIDIA Tegra186 P2771-0000 Board";
 	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
+
+	ethernet@2490000 {
+		mac-address = [ 00 04 4b 65 b1 05 ];
+	};
+
+	i2c@3160000 {
+		power-monitor@40 {
+			compatible = "ti,ina3221";
+			reg = <0x40>;
+		};
+
+		power-monitor@41 {
+			compatible = "ti,ina3221";
+			reg = <0x41>;
+		};
+
+		exp1: gpio@74 {
+			compatible = "ti,tca9539";
+			reg = <0x74>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_MAIN_GPIO(Y, 0) GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+
+		exp2: gpio@77 {
+			compatible = "ti,tca9539";
+			reg = <0x77>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_MAIN_GPIO(Y, 6) GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
+	};
+
+	dpaux@15040000 {
+		status = "okay";
+	};
+
+	nvdisplay@15200000 {
+		status = "okay";
+	};
+
+	dsi@15300000 {
+		status = "okay";
+	};
+
+	sor@15540000 {
+		status = "disabled";
+
+		nvidia,dpaux = <&dpaux1>;
+	};
+
+	sor@15580000 {
+		status = "okay";
+
+		ddc-i2c-bus = <&ddc>;
+
+		hpd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+		hdmi-supply = <&vdd_hdmi>;
+	};
+
+	dpaux@155c0000 {
+		status = "okay";
+	};
+
+	cpus {
+		cpu@0 {
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			enable-method = "psci";
+		};
+
+		cpu@4 {
+			enable-method = "psci";
+		};
+
+		cpu@5 {
+			enable-method = "psci";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&aon TEGRA_AON_GPIO(FF, 0) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-source;
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&aon TEGRA_AON_GPIO(FF, 1) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&aon TEGRA_AON_GPIO(FF, 2) GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		status = "okay";
+		method = "smc";
+
+		cpu_off = <0x84000002>;
+		cpu_on = <0xc4000003>;
+		cpu_suspend = <0xc4000001>;
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_sd: regulator@100 {
+			compatible = "regulator-fixed";
+			reg = <100>;
+
+			regulator-name = "SD_CARD_SW_PWR";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+
+			gpio = <&gpio TEGRA_MAIN_GPIO(P, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_hdmi: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
+
+			regulator-name = "VDD_HDMI_5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&exp1 14 GPIO_ACTIVE_LOW>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+	};
 };

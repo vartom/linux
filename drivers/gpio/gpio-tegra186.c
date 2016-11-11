@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 
 #include <dt-bindings/gpio/tegra186-gpio.h>
@@ -58,7 +59,8 @@ struct tegra_gpio_soc {
 struct tegra_gpio {
 	struct gpio_chip gpio;
 	struct irq_chip intc;
-	unsigned int irq;
+	unsigned int num_irq;
+	unsigned int *irq;
 
 	const struct tegra_gpio_soc *soc;
 
@@ -373,6 +375,39 @@ static void tegra186_gpio_irq(struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
+static int tegra186_gpio_irq_domain_xlate(struct irq_domain *domain,
+					  struct device_node *np,
+					  const u32 *spec, unsigned int size,
+					  unsigned long *hwirq,
+					  unsigned int *type)
+{
+	struct tegra_gpio *gpio = domain->host_data;
+	unsigned int port, pin, i, offset = 0;
+
+	if (size < 2)
+		return -EINVAL;
+
+	port = spec[0] / 8;
+	pin = spec[0] % 8;
+
+	if (port >= gpio->soc->num_ports) {
+		dev_err(gpio->gpio.parent, "invalid port number: %u\n", port);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < port; i++)
+		offset += gpio->soc->ports[i].pins;
+
+	*type = spec[1] & IRQ_TYPE_SENSE_MASK;
+	*hwirq = offset + pin;
+
+	return 0;
+}
+
+static const struct irq_domain_ops tegra186_gpio_irq_domain_ops = {
+	.xlate = tegra186_gpio_irq_domain_xlate,
+};
+
 static struct lock_class_key tegra186_gpio_lock_class;
 
 static int tegra186_gpio_probe(struct platform_device *pdev)
@@ -393,11 +428,24 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->base))
 		return PTR_ERR(gpio->base);
 
-	err = platform_get_irq(pdev, 0);
+	err = of_irq_count(pdev->dev.of_node);
 	if (err < 0)
 		return err;
 
-	gpio->irq = err;
+	gpio->num_irq = err;
+
+	gpio->irq = devm_kcalloc(&pdev->dev, gpio->num_irq, sizeof(*gpio->irq),
+				 GFP_KERNEL);
+	if (!gpio->irq)
+		return -ENOMEM;
+
+	for (i = 0; i < gpio->num_irq; i++) {
+		err = platform_get_irq(pdev, i);
+		if (err < 0)
+			return err;
+
+		gpio->irq[i] = err;
+	}
 
 	gpio->gpio.label = "tegra186-gpio";
 	gpio->gpio.parent = &pdev->dev;
@@ -432,7 +480,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 
 	gpio->domain = irq_domain_add_linear(pdev->dev.of_node,
 					     gpio->gpio.ngpio,
-					     &irq_domain_simple_ops,
+					     &tegra186_gpio_irq_domain_ops,
 					     gpio);
 	if (!gpio->domain)
 		return -ENODEV;
@@ -451,7 +499,10 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 		irq_set_chip_and_handler(irq, &gpio->intc, handle_simple_irq);
 	}
 
-	irq_set_chained_handler_and_data(gpio->irq, tegra186_gpio_irq, gpio);
+	for (i = 0; i < gpio->num_irq; i++)
+		irq_set_chained_handler_and_data(gpio->irq[i],
+						 tegra186_gpio_irq,
+						 gpio);
 
 	return 0;
 }
@@ -460,6 +511,9 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 {
 	struct tegra_gpio *gpio = platform_get_drvdata(pdev);
 	unsigned int i, irq;
+
+	for (i = 0; i < gpio->num_irq; i++)
+		irq_set_chained_handler_and_data(gpio->irq[i], NULL, NULL);
 
 	for (i = 0; i < gpio->gpio.ngpio; i++) {
 		irq = irq_find_mapping(gpio->domain, i);

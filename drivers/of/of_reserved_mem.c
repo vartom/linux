@@ -339,7 +339,10 @@ int of_reserved_mem_device_init_by_idx(struct device *dev,
 	rmem = __find_rmem(target);
 	of_node_put(target);
 
-	if (!rmem || !rmem->ops || !rmem->ops->device_init)
+	if (!rmem)
+		return -EPROBE_DEFER;
+
+	if (!rmem->ops || !rmem->ops->device_init)
 		return -EINVAL;
 
 	rd = kmalloc(sizeof(struct rmem_assigned_device), GFP_KERNEL);

@@ -11,7 +11,7 @@
  * more details.
  */
 
-#include <linux/module.h>
+//#include <linux/module.h>
 
 #include <soc/tegra/ivc.h>
 
@@ -251,7 +251,7 @@ static inline void tegra_ivc_invalidate_frame(struct tegra_ivc *ivc,
 					      unsigned int offset,
 					      size_t size)
 {
-	if (WARN_ON(!ivc->peer || frame >= ivc->num_frames))
+	if (!ivc->peer || WARN_ON(frame >= ivc->num_frames))
 		return;
 
 	phys = tegra_ivc_frame_phys(ivc, phys, frame) + offset;
@@ -265,7 +265,7 @@ static inline void tegra_ivc_flush_frame(struct tegra_ivc *ivc,
 					 unsigned int offset,
 					 size_t size)
 {
-	if (WARN_ON(!ivc->peer || frame >= ivc->num_frames))
+	if (!ivc->peer || WARN_ON(frame >= ivc->num_frames))
 		return;
 
 	phys = tegra_ivc_frame_phys(ivc, phys, frame) + offset;
@@ -433,7 +433,7 @@ int tegra_ivc_notified(struct tegra_ivc *ivc)
 	state = ACCESS_ONCE(ivc->rx.channel->tx.state);
 
 	if (state == TEGRA_IVC_STATE_SYNC) {
-		offset =  offsetof(struct tegra_ivc_header, tx.count);
+		offset = offsetof(struct tegra_ivc_header, tx.count);
 
 		/*
 		 * Order observation of TEGRA_IVC_STATE_SYNC before stores
@@ -552,13 +552,13 @@ EXPORT_SYMBOL(tegra_ivc_notified);
 
 size_t tegra_ivc_align(size_t size)
 {
-	return (size + (TEGRA_IVC_ALIGN - 1)) & ~(TEGRA_IVC_ALIGN - 1);
+	return ALIGN(size, TEGRA_IVC_ALIGN);
 }
 EXPORT_SYMBOL(tegra_ivc_align);
 
 unsigned tegra_ivc_total_queue_size(unsigned queue_size)
 {
-	if (queue_size & (TEGRA_IVC_ALIGN - 1)) {
+	if (!IS_ALIGNED(queue_size, TEGRA_IVC_ALIGN)) {
 		pr_err("%s: queue_size (%u) must be %u-byte aligned\n",
 		       __func__, queue_size, TEGRA_IVC_ALIGN);
 		return 0;
@@ -568,8 +568,8 @@ unsigned tegra_ivc_total_queue_size(unsigned queue_size)
 }
 EXPORT_SYMBOL(tegra_ivc_total_queue_size);
 
-static int check_ivc_params(unsigned long base1, unsigned long base2,
-			    unsigned int num_frames, size_t frame_size)
+static int tegra_ivc_check_params(unsigned long rx, unsigned long tx,
+				  unsigned int num_frames, size_t frame_size)
 {
 	BUILD_BUG_ON(!IS_ALIGNED(offsetof(struct tegra_ivc_header, tx.count),
 				 TEGRA_IVC_ALIGN));
@@ -583,35 +583,35 @@ static int check_ivc_params(unsigned long base1, unsigned long base2,
 		return -EINVAL;
 	}
 
-	/*
-	 * The headers must at least be aligned enough for counters
-	 * to be accessed atomically.
-	 */
-	if (!IS_ALIGNED(base1, TEGRA_IVC_ALIGN)) {
-		pr_err("IVC channel start not aligned: %lx\n", base1);
-		return -EINVAL;
-	}
-
-	if (!IS_ALIGNED(base2, TEGRA_IVC_ALIGN)) {
-		pr_err("IVC channel start not aligned: %lx\n", base2);
-		return -EINVAL;
-	}
-
 	if (!IS_ALIGNED(frame_size, TEGRA_IVC_ALIGN)) {
 		pr_err("frame size not adequately aligned: %zu\n", frame_size);
 		return -EINVAL;
 	}
 
-	if (base1 < base2) {
-		if (base1 + frame_size * num_frames > base2) {
-			pr_err("queue regions overlap: %lx + %zx, %zx\n",
-			       base1, frame_size, frame_size * num_frames);
+	/*
+	 * The headers must at least be aligned enough for counters
+	 * to be accessed atomically.
+	 */
+	if (!IS_ALIGNED(rx, TEGRA_IVC_ALIGN)) {
+		pr_err("IVC channel start not aligned: %#lx\n", rx);
+		return -EINVAL;
+	}
+
+	if (!IS_ALIGNED(tx, TEGRA_IVC_ALIGN)) {
+		pr_err("IVC channel start not aligned: %#lx\n", tx);
+		return -EINVAL;
+	}
+
+	if (rx < tx) {
+		if (rx + frame_size * num_frames > tx) {
+			pr_err("queue regions overlap: %#lx + %zx > %#lx\n",
+			       rx, frame_size * num_frames, tx);
 			return -EINVAL;
 		}
 	} else {
-		if (base2 + frame_size * num_frames > base1) {
-			pr_err("queue regions overlap: %lx + %zx, %zx\n",
-			       base2, frame_size, frame_size * num_frames);
+		if (tx + frame_size * num_frames > rx) {
+			pr_err("queue regions overlap: %#lx + %zx > %#lx\n",
+			       tx, frame_size * num_frames, rx);
 			return -EINVAL;
 		}
 	}
@@ -619,8 +619,8 @@ static int check_ivc_params(unsigned long base1, unsigned long base2,
 	return 0;
 }
 
-int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer,
-		   void __iomem *rx_virt, void __iomem *tx_virt,
+int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer, void *rx,
+		   dma_addr_t rx_phys, void *tx, dma_addr_t tx_phys,
 		   unsigned int num_frames, size_t frame_size,
 		   void (*notify)(struct tegra_ivc *ivc, void *data),
 		   void *data)
@@ -631,13 +631,6 @@ int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer,
 	if (WARN_ON(!ivc || !notify))
 		return -EINVAL;
 
-	err = check_ivc_params((unsigned long)rx_virt, (unsigned long)tx_virt,
-			       num_frames, frame_size);
-	if (err < 0)
-		return err;
-
-	queue_size = tegra_ivc_total_queue_size(num_frames * frame_size);
-
 	/*
 	 * All sizes that can be returned by communication functions should
 	 * fit in an int.
@@ -645,27 +638,33 @@ int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer,
 	if (frame_size > INT_MAX)
 		return -E2BIG;
 
-	ivc->rx.channel = (struct tegra_ivc_header *)rx_virt;
-	ivc->tx.channel = (struct tegra_ivc_header *)tx_virt;
+	err = tegra_ivc_check_params((unsigned long)rx, (unsigned long)tx,
+				     num_frames, frame_size);
+	if (err < 0)
+		return err;
+
+	queue_size = tegra_ivc_total_queue_size(num_frames * frame_size);
 
 	if (peer) {
-		ivc->rx.phys = dma_map_single(peer, ivc->rx.channel,
-					      queue_size,
+		ivc->rx.phys = dma_map_single(peer, rx, queue_size,
 					      DMA_BIDIRECTIONAL);
 		if (ivc->rx.phys == DMA_ERROR_CODE)
 			return -ENOMEM;
 
-		ivc->tx.phys = dma_map_single(peer, ivc->tx.channel,
-					      queue_size,
+		ivc->tx.phys = dma_map_single(peer, tx, queue_size,
 					      DMA_BIDIRECTIONAL);
 		if (ivc->tx.phys == DMA_ERROR_CODE) {
-			dma_unmap_single(peer, ivc->rx.phys,
-					 queue_size,
+			dma_unmap_single(peer, ivc->rx.phys, queue_size,
 					 DMA_BIDIRECTIONAL);
 			return -ENOMEM;
 		}
+	} else {
+		ivc->rx.phys = rx_phys;
+		ivc->tx.phys = tx_phys;
 	}
 
+	ivc->rx.channel = rx;
+	ivc->tx.channel = tx;
 	ivc->peer = peer;
 	ivc->notify = notify;
 	ivc->notify_data = data;

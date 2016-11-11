@@ -68,6 +68,7 @@ static const struct tegra_ictlr_soc tegra210_ictlr_soc = {
 };
 
 static const struct of_device_id ictlr_matches[] = {
+	{ .compatible = "nvidia,tegra186-ictlr", .data = &tegra210_ictlr_soc },
 	{ .compatible = "nvidia,tegra210-ictlr", .data = &tegra210_ictlr_soc },
 	{ .compatible = "nvidia,tegra30-ictlr", .data = &tegra30_ictlr_soc },
 	{ .compatible = "nvidia,tegra20-ictlr", .data = &tegra20_ictlr_soc },
@@ -366,3 +367,4 @@ out_free:
 IRQCHIP_DECLARE(tegra20_ictlr, "nvidia,tegra20-ictlr", tegra_ictlr_init);
 IRQCHIP_DECLARE(tegra30_ictlr, "nvidia,tegra30-ictlr", tegra_ictlr_init);
 IRQCHIP_DECLARE(tegra210_ictlr, "nvidia,tegra210-ictlr", tegra_ictlr_init);
+IRQCHIP_DECLARE(tegra186_ictlr, "nvidia,tegra186-ictlr", tegra_ictlr_init);

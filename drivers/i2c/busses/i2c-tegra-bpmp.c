@@ -18,7 +18,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define DEBUG
+//#define DEBUG
 
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -106,7 +106,7 @@ static int tegra_bpmp_xlate_flags(u16 flags, u16 *out)
  * representation. Any undefined flag being set causes an error.
  *
  * The data is there only for writes. Reads have the data transferred in the
- * other direction, and thus data is not present.
+ * other diaection, and thus data is not present.
  *
  * See deserialize_i2c documentation for the data format in the other direction.
  */
@@ -124,7 +124,7 @@ static int tegra_bpmp_serialize_i2c_msg(struct tegra_bpmp_i2c *i2c,
 
 	for (i = 0; i < num; i++) {
 		struct i2c_msg *msg = &msgs[i];
-		u16 flags;
+		u16 flags = 0;
 
 		err = tegra_bpmp_xlate_flags(msg->flags, &flags);
 		if (err < 0)
@@ -173,6 +173,7 @@ static int tegra_bpmp_i2c_deserialize(struct tegra_bpmp_i2c *i2c, char *buf,
 	dev_dbg(i2c->dev, "> %s(i2c=%p, buf=%p, size=%zu, msgs=%p, num=%u)\n",
 		__func__, i2c, buf, size, msgs, num);
 	dev_dbg(i2c->dev, "  read: %*ph\n", (int)size, buf);
+	dev_dbg(i2c->dev, "  CPU: %d\n", smp_processor_id());
 
 	for (i = 0; i < num; i++)
 		if (msgs[i].flags & I2C_M_RD)

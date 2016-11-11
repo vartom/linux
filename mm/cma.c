@@ -166,12 +166,15 @@ core_initcall(cma_init_reserved_areas);
  *
  * This function creates custom contiguous area from already reserved memory.
  */
-int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
+int cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 				 unsigned int order_per_bit,
 				 struct cma **res_cma)
 {
 	struct cma *cma;
 	phys_addr_t alignment;
+
+	pr_info("> %s(base=%pa, size=%pa, order_per_bit=%u, res_cma=%p)\n",
+		__func__, &base, &size, order_per_bit, res_cma);
 
 	/* Sanity checks */
 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
@@ -185,6 +188,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	/* ensure minimal alignment required by mm core */
 	alignment = PAGE_SIZE <<
 			max_t(unsigned long, MAX_ORDER - 1, pageblock_order);
+	pr_info("  alignment: %pa\n", &alignment);
 
 	/* alignment should be aligned with order_per_bit */
 	if (!IS_ALIGNED(alignment >> PAGE_SHIFT, 1 << order_per_bit))
@@ -205,6 +209,7 @@ int __init cma_init_reserved_mem(phys_addr_t base, phys_addr_t size,
 	cma_area_count++;
 	totalcma_pages += (size / PAGE_SIZE);
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 

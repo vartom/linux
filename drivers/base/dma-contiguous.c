@@ -246,21 +246,27 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	phys_addr_t mask = align - 1;
 	unsigned long node = rmem->fdt_node;
 	struct cma *cma;
-	int err;
+	int err = 0;
+
+	pr_info("> %s(rmem=%p)\n", __func__, rmem);
+	pr_info("  base: %pa size: %pa\n", &rmem->base, &rmem->size);
 
 	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
-	    of_get_flat_dt_prop(node, "no-map", NULL))
-		return -EINVAL;
+	    of_get_flat_dt_prop(node, "no-map", NULL)) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	if ((rmem->base & mask) || (rmem->size & mask)) {
 		pr_err("Reserved memory: incorrect alignment of CMA region\n");
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 
 	err = cma_init_reserved_mem(rmem->base, rmem->size, 0, &cma);
 	if (err) {
 		pr_err("Reserved memory: unable to setup CMA region\n");
-		return err;
+		goto out;
 	}
 	/* Architecture specific contiguous memory fixup. */
 	dma_contiguous_early_fixup(rmem->base, rmem->size);
@@ -274,7 +280,9 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 	pr_info("Reserved memory: created CMA memory pool at %pa, size %ld MiB\n",
 		&rmem->base, (unsigned long)rmem->size / SZ_1M);
 
-	return 0;
+out:
+	pr_info("< %s() = %d\n", __func__, err);
+	return err;
 }
 RESERVEDMEM_OF_DECLARE(cma, "shared-dma-pool", rmem_cma_setup);
 #endif

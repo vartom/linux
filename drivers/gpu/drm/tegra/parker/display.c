@@ -1,5 +1,3 @@
-#define DEBUG
-
 #include <linux/clk.h>
 #include <linux/clk-provider.h> /* XXX */
 #include <linux/component.h>
@@ -12,7 +10,10 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_gem_cma_helper.h>
 
+#include "../drm.h"
 #include "display.h"
 
 #define WIN_ACT_REQ(x) (1 << (1 + (x)))
@@ -40,12 +41,16 @@
 #define DC_WIN_COLOR_DEPTH 0x060c
 #define DC_WIN_POSITION 0x0610
 #define DC_WIN_SIZE 0x0614
+#define DC_WIN_CROPPED_SIZE 0x0618
+#define DC_WIN_PLANAR_STORAGE 0x0624
+#define DC_WIN_SET_PARAMS 0x0634
 
 #define DC_WINBUF_START_ADDR 0x0700
 #define DC_WINBUF_START_ADDR_NS 0x0704
 #define DC_WINBUF_START_ADDR_U 0x0708
 #define DC_WINBUF_START_ADDR_U_NS 0x070c
 #define DC_WINBUF_START_ADDR_V 0x0710
+#define DC_WINBUF_CROPPED_POINT 0x0718
 #define DC_WINBUF_START_ADDR_V_NS 0x0714
 #define DC_WINBUF_SURFACE_KIND 0x072c
 #define DC_WINBUF_START_ADDR_HI 0x0734
@@ -54,6 +59,7 @@
 #define DC_WINBUF_START_ADDR_HI_U_NS 0x0740
 #define DC_WINBUF_START_ADDR_HI_V 0x0744
 #define DC_WINBUF_START_ADDR_HI_V_NS 0x0748
+
 
 struct tegra_crtc_state {
 	struct drm_crtc_state base;
@@ -122,7 +128,7 @@ static inline void tegra_crtc_writel(struct tegra_crtc *tegra, u32 value,
 	writel(value, tegra->regs + offset);
 }
 
-void tegra_crtc_update(struct tegra_crtc *tegra)
+static void tegra_crtc_update(struct tegra_crtc *tegra)
 {
 	tegra_crtc_writel(tegra, GENERAL_UPDATE, DC_CMD_STATE_CONTROL);
 }
@@ -856,6 +862,8 @@ static void tegra_window_atomic_update(struct drm_plane *plane,
 	struct tegra_crtc *tegra = to_tegra_crtc(plane->state->crtc);
 	struct tegra_window *window = to_tegra_window(plane);
 	struct drm_crtc *crtc = plane->state->crtc;
+	struct drm_gem_cma_object *gem;
+	dma_addr_t base;
 	u32 value;
 
 	pr_debug("> %s(plane=%p, old_state=%p)\n", __func__, plane, old_state);
@@ -911,6 +919,40 @@ static void tegra_window_atomic_update(struct drm_plane *plane,
 
 	value = readl(window->regs + DC_WIN_CORE_WINDOWGROUP_SET_CONTROL);
 	pr_debug("  owner: %u\n", value & 0xf);
+
+	gem = drm_fb_cma_get_gem_obj(plane->state->fb, 0);
+	base = gem->paddr;
+
+	pr_debug("  base: %pad\n", &base);
+
+	value = 0xc;
+	writel(value, window->regs + DC_WIN_COLOR_DEPTH);
+
+	value = (0 & 0x7fff) << 16 | (0 & 0x7fff);
+	writel(value, window->regs + DC_WIN_POSITION);
+
+	value = (1080 & 0x7fff) << 16 | (1920 & 0x7fff);
+	writel(value, window->regs + DC_WIN_SIZE);
+
+	value = (1 << 30);
+	writel(value, window->regs + DC_WIN_WIN_OPTIONS);
+
+	value = (1080 & 0x7fff) << 16 | (1920 & 0x7fff);
+	writel(value, window->regs + DC_WIN_CROPPED_SIZE);
+
+	value = (base >> 32) & 0xffffffff;
+	writel(value, window->regs + DC_WINBUF_START_ADDR_HI);
+	value = (base >>  0)& 0xffffffff;
+	writel(value, window->regs + DC_WINBUF_START_ADDR);
+
+	value = (1920 * 4) >> 6;
+	writel(value, window->regs + DC_WIN_PLANAR_STORAGE);
+
+	value = 0;
+	writel(value, window->regs + DC_WIN_SET_PARAMS);
+
+	value = (0 & 0x7fff) << 16 | (0 & 0x7fff);
+	writel(value, window->regs + DC_WINBUF_CROPPED_POINT);
 
 out:
 	pr_debug("< %s()\n", __func__);
@@ -1179,6 +1221,7 @@ static int tegra186_display_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, crtc);
 	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev); /* XXX */
 
 	err = devm_request_irq(&pdev->dev, crtc->irq, tegra186_display_irq,
 			       IRQF_SHARED, dev_name(&pdev->dev), crtc);
@@ -1207,6 +1250,7 @@ static int tegra186_display_remove(struct platform_device *pdev)
 
 	component_del(&pdev->dev, &tegra186_display_ops);
 	devm_free_irq(&pdev->dev, crtc->irq, crtc);
+	pm_runtime_put(&pdev->dev); /* XXX */
 	pm_runtime_disable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "< %s() = %d\n", __func__, err);

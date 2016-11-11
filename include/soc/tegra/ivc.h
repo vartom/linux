@@ -24,8 +24,8 @@ struct tegra_ivc {
 
 	struct {
 		struct tegra_ivc_header *channel;
+		unsigned int position;
 		dma_addr_t phys;
-		u32 position;
 	} rx, tx;
 
 	void (*notify)(struct tegra_ivc *ivc, void *data);
@@ -99,11 +99,17 @@ void tegra_ivc_reset(struct tegra_ivc *ivc);
 
 size_t tegra_ivc_align(size_t size);
 unsigned tegra_ivc_total_queue_size(unsigned queue_size);
-int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer,
-		   void __iomem *rx_virt, void __iomem *tx_virt,
+int tegra_ivc_init(struct tegra_ivc *ivc, struct device *peer, void *rx,
+		   dma_addr_t rx_phys, void *tx, dma_addr_t tx_phys,
 		   unsigned int num_frames, size_t frame_size,
 		   void (*notify)(struct tegra_ivc *ivc, void *data),
 		   void *data);
+int tegra_ivc_init_io(struct tegra_ivc *ivc,
+		      void __iomem *rx, phys_addr_t rx_phys,
+		      void __iomem *tx, phys_addr_t tx_phys,
+		      unsigned int num_frames, size_t frame_size,
+		      void (*notify)(struct tegra_ivc *ivc, void *data),
+		      void *data);
 void tegra_ivc_cleanup(struct tegra_ivc *ivc);
 
 #endif /* __TEGRA_IVC_H */
