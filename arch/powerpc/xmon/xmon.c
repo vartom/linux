@@ -28,6 +28,7 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 #include <linux/ctype.h>
+#include <linux/system-power.h>
 
 #include <asm/debugfs.h>
 #include <asm/ptrace.h>
@@ -1086,8 +1087,7 @@ static void bootcmds(void)
 	else if (cmd == 'h')
 		ppc_md.halt();
 	else if (cmd == 'p')
-		if (pm_power_off)
-			pm_power_off();
+		system_power_off();
 }
 
 static int cpu_cmd(void)
