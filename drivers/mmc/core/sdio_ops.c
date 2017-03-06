@@ -69,6 +69,8 @@ static int mmc_io_rw_direct_host(struct mmc_host *host, int write, unsigned fn,
 	struct mmc_command cmd = {};
 	int err;
 
+	pr_info("> %s(host=%p, ...)\n", __func__, host);
+
 	if (fn > 7)
 		return -EINVAL;
 
@@ -85,18 +87,26 @@ static int mmc_io_rw_direct_host(struct mmc_host *host, int write, unsigned fn,
 	cmd.flags = MMC_RSP_SPI_R5 | MMC_RSP_R5 | MMC_CMD_AC;
 
 	err = mmc_wait_for_cmd(host, &cmd, 0);
-	if (err)
+	if (err) {
+		pr_info("  mmc_wait_for_cmd(): %d\n", err);
 		return err;
+	}
 
 	if (mmc_host_is_spi(host)) {
 		/* host driver already reported errors */
 	} else {
-		if (cmd.resp[0] & R5_ERROR)
+		if (cmd.resp[0] & R5_ERROR) {
+			pr_info("  R5_ERROR\n");
 			return -EIO;
-		if (cmd.resp[0] & R5_FUNCTION_NUMBER)
+		}
+		if (cmd.resp[0] & R5_FUNCTION_NUMBER) {
+			pr_info("  R5_FUNCTION_NUMBER\n");
 			return -EINVAL;
-		if (cmd.resp[0] & R5_OUT_OF_RANGE)
+		}
+		if (cmd.resp[0] & R5_OUT_OF_RANGE) {
+			pr_info("  R5_OUT_OF_RANGE\n");
 			return -ERANGE;
+		}
 	}
 
 	if (out) {
@@ -106,6 +116,7 @@ static int mmc_io_rw_direct_host(struct mmc_host *host, int write, unsigned fn,
 			*out = cmd.resp[0] & 0xFF;
 	}
 
+	pr_info("< %s()\n", __func__);
 	return 0;
 }
 
@@ -203,6 +214,8 @@ int sdio_reset(struct mmc_host *host)
 	int ret;
 	u8 abort;
 
+	pr_info("> %s(host=%p)\n", __func__, host);
+
 	/* SDIO Simplified Specification V2.0, 4.4 Reset for SDIO */
 
 	ret = mmc_io_rw_direct_host(host, 0, 0, SDIO_CCCR_ABORT, 0, &abort);
@@ -211,6 +224,9 @@ int sdio_reset(struct mmc_host *host)
 	else
 		abort |= 0x08;
 
-	return mmc_io_rw_direct_host(host, 1, 0, SDIO_CCCR_ABORT, abort, NULL);
+	ret = mmc_io_rw_direct_host(host, 1, 0, SDIO_CCCR_ABORT, abort, NULL);
+
+	pr_info("< %s() = %d\n", __func__, ret);
+	return ret;
 }
 
