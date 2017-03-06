@@ -2638,11 +2638,15 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 #endif
 	mmc_power_up(host, host->ocr_avail);
 
+	pr_info("  MMC powered up\n");
+
 	/*
 	 * Some eMMCs (with VCCQ always on) may not be reset after power up, so
 	 * do a hardware reset if possible.
 	 */
 	mmc_hw_reset_for_init(host);
+
+	pr_info("  MMC reset\n");
 
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
@@ -2650,8 +2654,11 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 * should be ignored by SD/eMMC cards.
 	 * Skip it if we already know that we do not support SDIO commands
 	 */
-	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
+	if (!(host->caps2 & MMC_CAP2_NO_SDIO)) {
+		pr_info("  resetting SDIO...\n");
 		sdio_reset(host);
+		pr_info("  done\n");
+	}
 
 	mmc_go_idle(host);
 
@@ -2659,9 +2666,15 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 		mmc_send_if_cond(host, host->ocr_avail);
 
 	/* Order's important: probe SDIO, then SD, then MMC */
-	if (!(host->caps2 & MMC_CAP2_NO_SDIO))
-		if (!mmc_attach_sdio(host))
+	if (!(host->caps2 & MMC_CAP2_NO_SDIO)) {
+		pr_info("  attaching SDIO ...\n");
+		if (!mmc_attach_sdio(host)) {
+			pr_info("  done\n");
 			return 0;
+		}
+
+		pr_info("  failed\n");
+	}
 
 	if (!(host->caps2 & MMC_CAP2_NO_SD))
 		if (!mmc_attach_sd(host))
