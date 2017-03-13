@@ -39,6 +39,7 @@
 #include "hw/host1x02.h"
 #include "hw/host1x04.h"
 #include "hw/host1x05.h"
+#include "hw/host1x06.h"
 
 void host1x_sync_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -104,7 +105,18 @@ static const struct host1x_info host1x05_info = {
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
+static const struct host1x_info host1x06_info = {
+	.nb_channels = 63,
+	.nb_pts = 576,
+	.nb_mlocks = 24,
+	.nb_bases = 16,
+	.init = host1x06_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(34),
+};
+
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
 	{ .compatible = "nvidia,tegra114-host1x", .data = &host1x02_info, },
