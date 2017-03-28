@@ -49,6 +49,41 @@
 		vmmc-supply = <&vdd_sd>;
 	};
 
+	host1x@13e00000 {
+		status = "okay";
+
+		dpaux@15040000 {
+			status = "okay";
+		};
+
+		display-hub@15200000 {
+			status = "okay";
+		};
+
+		dsi@15300000 {
+			status = "okay";
+		};
+
+		sor@15540000 {
+			status = "disabled";
+
+			nvidia,dpaux = <&dpaux1>;
+		};
+
+		sor@15580000 {
+			status = "okay";
+
+			ddc-i2c-bus = <&ddc>;
+
+			hpd-gpios = <&gpio TEGRA_MAIN_GPIO(P, 1) GPIO_ACTIVE_LOW>;
+			hdmi-supply = <&vdd_hdmi>;
+		};
+
+		dpaux@155c0000 {
+			status = "okay";
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
