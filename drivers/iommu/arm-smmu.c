@@ -880,6 +880,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
 	const struct iommu_gather_ops *tlb_ops;
 
+	pr_info("> %s(domain=%p, smmu=%p)\n", __func__, domain, smmu);
+
 	mutex_lock(&smmu_domain->init_mutex);
 	if (smmu_domain->smmu)
 		goto out_unlock;
@@ -938,6 +940,8 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		ret = -EINVAL;
 		goto out_unlock;
 	}
+
+	pr_info("stage: %u\n", smmu_domain->stage);
 
 	switch (smmu_domain->stage) {
 	case ARM_SMMU_DOMAIN_S1:
@@ -1042,12 +1046,14 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	/* Publish page table ops for map/unmap */
 	smmu_domain->pgtbl_ops = pgtbl_ops;
+	pr_info("< %s()\n", __func__);
 	return 0;
 
 out_clear_smmu:
 	smmu_domain->smmu = NULL;
 out_unlock:
 	mutex_unlock(&smmu_domain->init_mutex);
+	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -1515,6 +1521,8 @@ static int arm_smmu_add_device(struct device *dev)
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
 	int i, ret;
 
+	dev_info(dev, "> %s(dev=%p)\n", __func__, dev);
+
 	if (using_legacy_binding) {
 		ret = arm_smmu_register_legacy_master(dev, &smmu);
 		fwspec = dev->iommu_fwspec;
@@ -1560,12 +1568,14 @@ static int arm_smmu_add_device(struct device *dev)
 
 	iommu_device_link(&smmu->iommu, dev);
 
+	dev_info(dev, "< %s()\n", __func__);
 	return 0;
 
 out_free:
 	if (fwspec)
 		kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
+	dev_info(dev, "< %s() = %d\n", __func__, ret);
 	return ret;
 }
 
@@ -1575,6 +1585,7 @@ static void arm_smmu_remove_device(struct device *dev)
 	struct arm_smmu_master_cfg *cfg;
 	struct arm_smmu_device *smmu;
 
+	dev_info(dev, "> %s(dev=%p)\n", __func__, dev);
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
 		return;
@@ -1587,6 +1598,8 @@ static void arm_smmu_remove_device(struct device *dev)
 	iommu_group_remove_device(dev);
 	kfree(fwspec->iommu_priv);
 	iommu_fwspec_free(dev);
+
+	dev_info(dev, "< %s()\n", __func__);
 }
 
 static struct iommu_group *arm_smmu_device_group(struct device *dev)
@@ -1596,6 +1609,8 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 	struct iommu_group *group = NULL;
 	int i, idx;
 
+	dev_info(dev, "> %s(dev=%p)\n", __func__, dev);
+
 	for_each_cfg_sme(fwspec, i, idx) {
 		if (group && smmu->s2crs[idx].group &&
 		    group != smmu->s2crs[idx].group)
@@ -1604,14 +1619,17 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 		group = smmu->s2crs[idx].group;
 	}
 
-	if (group)
+	if (group) {
+		dev_info(dev, "  group: %p\n", group);
 		return iommu_group_ref_get(group);
+	}
 
 	if (dev_is_pci(dev))
 		group = pci_device_group(dev);
 	else
 		group = generic_device_group(dev);
 
+	dev_info(dev, "< %s() = %p\n", __func__, group);
 	return group;
 }
 
@@ -2211,7 +2229,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 			smmu->num_context_irqs++;
 	}
 
-	if (!smmu->num_context_irqs) {
+	if (0 && !smmu->num_context_irqs) {
 		dev_err(dev, "found %d interrupts but expected at least %d\n",
 			num_irqs, smmu->num_global_irqs + 1);
 		return -ENODEV;
@@ -2238,7 +2256,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	if (smmu->version == ARM_SMMU_V2 &&
+	if (0 && smmu->version == ARM_SMMU_V2 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
 		dev_err(dev,
 			"found only %d context interrupt(s) but %d required\n",
