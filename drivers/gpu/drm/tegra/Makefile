@@ -17,4 +17,11 @@ tegra-drm-y := \
 	falcon.o \
 	vic.o
 
+tegra-drm-$(CONFIG_ARCH_TEGRA_186_SOC) += \
+	parker/display.o \
+	parker/dc.o \
+	parker/dpaux.o \
+	parker/dsi.o \
+	parker/sor.o
+
 obj-$(CONFIG_DRM_TEGRA) += tegra-drm.o
