@@ -59,6 +59,12 @@
 		snps,rxpbl = <8>;
 	};
 
+	memory-controller@2c00000 {
+		compatible = "nvidia,tegra186-mc";
+		reg = <0x0 0x02c00000 0x0 0xb0000>;
+		status = "disabled";
+	};
+
 	uarta: serial@3100000 {
 		compatible = "nvidia,tegra186-uart", "nvidia,tegra20-uart";
 		reg = <0x0 0x03100000 0x0 0x40>;
