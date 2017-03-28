@@ -84,14 +84,14 @@
 
 &pwm_AO_ab {
 	status = "okay";
-	pinctrl-0 = <&pwm_ao_a_3_pins>, <&pwm_ao_b_pins>;
-	pinctrl-names = "default";
+//	pinctrl-0 = <&pwm_ao_a_3_pins>, <&pwm_ao_b_pins>;
+//	pinctrl-names = "default";
 	clocks = <&clkc CLKID_FCLK_DIV4>;
 	clock-names = "clkin0";
 };
 
 &pwm_ef {
-	pinctrl-0 = <&pwm_e_pins>, <&pwm_f_clk_pins>;
+//	pinctrl-0 = <&pwm_e_pins>, <&pwm_f_clk_pins>;
 };
 
 &sd_emmc_a {
