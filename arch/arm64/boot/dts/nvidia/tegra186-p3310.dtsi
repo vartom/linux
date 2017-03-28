@@ -99,7 +99,7 @@
 
 	/* SDMMC3 (SDIO) */
 	sdhci@3440000 {
-		status = "okay";
+		status = "disabled";
 		bus-width = <4>;
 		non-removable;
 
@@ -111,7 +111,7 @@
 
 	/* SDMMC4 (eMMC) */
 	sdhci@3460000 {
-		status = "okay";
+		status = "disabled";
 		bus-width = <8>;
 		non-removable;
 
@@ -133,6 +133,10 @@
 
 	pmc@c360000 {
 		nvidia,invert-interrupt;
+	};
+
+	iommu@12000000 {
+		status = "disabled";
 	};
 
 	cpus {
@@ -175,6 +179,8 @@
 
 				#gpio-cells = <2>;
 				gpio-controller;
+
+				system-power-controller;
 
 				pinctrl-names = "default";
 				pinctrl-0 = <&max77620_default>;
