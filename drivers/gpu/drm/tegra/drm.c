@@ -141,6 +141,13 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 			goto free;
 		}
 
+		err = iommu_attach_device(tegra->domain, drm->dev->parent);
+		if (err < 0) {
+			dev_err(drm->dev, "failed to attach device to IOMMU: %d\n", err);
+			iommu_domain_free(tegra->domain);
+			goto free;
+		}
+
 		geometry = &tegra->domain->geometry;
 		gem_start = geometry->aperture_start;
 		gem_end = geometry->aperture_end - CARVEOUT_SZ;
@@ -1180,6 +1187,10 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra210-sor", },
 	{ .compatible = "nvidia,tegra210-sor1", },
 	{ .compatible = "nvidia,tegra210-vic", },
+	{ .compatible = "nvidia,tegra186-display", },
+	{ .compatible = "nvidia,tegra186-dc", },
+	{ .compatible = "nvidia,tegra186-dsi", },
+	{ .compatible = "nvidia,tegra186-sor", },
 	{ /* sentinel */ }
 };
 
@@ -1202,6 +1213,13 @@ static struct platform_driver * const drivers[] = {
 	&tegra_gr2d_driver,
 	&tegra_gr3d_driver,
 	&tegra_vic_driver,
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+	&tegra186_display_driver,
+	&tegra186_dc_driver,
+	&tegra186_dpaux_driver,
+	&tegra186_dsi_driver,
+	&tegra186_sor_driver,
+#endif
 };
 
 static int __init host1x_drm_init(void)
