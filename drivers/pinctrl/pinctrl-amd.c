@@ -531,7 +531,7 @@ static void amd_gpio_irq_handler(struct irq_desc *desc)
 						(off * 4 + i) * 4);
 				if ((pin_reg & BIT(INTERRUPT_STS_OFF)) ||
 					(pin_reg & BIT(WAKE_STS_OFF))) {
-					irq = irq_find_mapping(gc->irqdomain,
+					irq = irq_find_mapping(gc->irq.domain,
 								off * 4 + i);
 					generic_handle_irq(irq);
 					writel(pin_reg,
