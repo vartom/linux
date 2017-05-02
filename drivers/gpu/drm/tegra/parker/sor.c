@@ -2036,6 +2036,7 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	}
 
 	sor->soc = of_device_get_match_data(&pdev->dev);
+	sor->dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sor->regs = devm_ioremap_resource(&pdev->dev, res);
@@ -2131,13 +2132,13 @@ static int tegra_sor_probe(struct platform_device *pdev)
 	sor->hdmi_supply = devm_regulator_get(&pdev->dev, "hdmi");
 	if (IS_ERR(sor->hdmi_supply)) {
 		err = PTR_ERR(sor->hdmi_supply);
-		dev_err(sor->dev, "cannot get HDMI supply: %d\n", err);
+		dev_err(&pdev->dev, "cannot get HDMI supply: %d\n", err);
 		goto out;
 	}
 
 	err = regulator_enable(sor->hdmi_supply);
 	if (err < 0) {
-		dev_err(sor->dev, "failed to enable HDMI supply: %d\n", err);
+		dev_err(&pdev->dev, "failed to enable HDMI supply: %d\n", err);
 		goto out;
 	}
 
