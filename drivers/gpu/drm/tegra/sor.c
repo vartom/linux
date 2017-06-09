@@ -22,6 +22,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_scdc_helper.h>
 
 #include "dc.h"
 #include "drm.h"
@@ -194,6 +195,8 @@ struct tegra_sor {
 	struct regulator *avdd_io_supply;
 	struct regulator *vdd_pll_supply;
 	struct regulator *hdmi_supply;
+
+	struct delayed_work scdc;
 };
 
 struct tegra_sor_state {
@@ -1371,8 +1374,8 @@ tegra_sor_connector_mode_valid(struct drm_connector *connector,
 			       struct drm_display_mode *mode)
 {
 	/* HDMI 2.0 modes are not yet supported */
-	if (mode->clock > 340000)
-		return MODE_NOCLOCK;
+//	if (mode->clock > 340000)
+//		return MODE_NOCLOCK;
 
 	return MODE_OK;
 }
@@ -1956,6 +1959,8 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	u32 value;
 	int err;
 
+	cancel_delayed_work_sync(&sor->scdc);
+
 	err = tegra_sor_detach(sor);
 	if (err < 0)
 		dev_err(sor->dev, "failed to detach SOR: %d\n", err);
@@ -1982,6 +1987,76 @@ static void tegra_sor_hdmi_disable(struct drm_encoder *encoder)
 	pm_runtime_put(sor->dev);
 }
 
+static void tegra_sor_hdmi_scdc_work(struct work_struct *work)
+{
+	struct tegra_sor *sor = container_of(work, struct tegra_sor, scdc.work);
+	struct i2c_adapter *ddc = sor->output.ddc;
+	u8 value;
+	int err;
+
+	err = drm_scdc_readb(ddc, SCDC_SINK_VERSION, &value);
+	if (err < 0)
+		dev_err(sor->dev, "failed to read SCDC sink version: %d\n", err);
+
+	DRM_DEBUG_KMS("SCDC supported: %u\n", value);
+	value = 0x1;
+
+	err = drm_scdc_writeb(ddc, SCDC_SOURCE_VERSION, value);
+	if (err < 0)
+		dev_err(sor->dev, "failed to write SCDC source version: %d\n", err);
+
+	drm_scdc_set_high_tmds_clock_ratio(ddc, true);
+	drm_scdc_set_scrambling(ddc, true);
+
+	if (!drm_scdc_get_scrambling_status(ddc))
+		DRM_DEBUG_KMS("SCDC not scrambled!\n");
+	else
+		DRM_DEBUG_KMS("SCDC scrambled...\n");
+
+	if (1) {
+		u32 value;
+
+		value = tegra_sor_readl(sor, SOR_HDMI2_CTRL);
+		value |= SOR_HDMI2_CTRL_CLOCK_MODE_DIV_BY_4;
+		value |= SOR_HDMI2_CTRL_SCRAMBLE;
+		tegra_sor_writel(sor, value, SOR_HDMI2_CTRL);
+	}
+
+	schedule_delayed_work(&sor->scdc, msecs_to_jiffies(2500));
+}
+
+static int tegra_sor_hdmi_scdc(struct tegra_sor *sor)
+{
+	struct drm_scdc *scdc = &sor->output.connector.display_info.hdmi.scdc;
+	struct drm_display_mode *mode;
+	int err = 0;
+
+	dev_info(sor->dev, "> %s(sor=%p)\n", __func__, sor);
+
+	mode = &sor->output.encoder.crtc->state->adjusted_mode;
+
+	if (mode->clock < 340000)
+		goto out;
+
+	dev_info(sor->dev, "  SCDC:\n");
+	dev_info(sor->dev, "    supported: %s\n", scdc->supported ? "yes" : "no");
+
+	if (scdc->supported) {
+		dev_info(sor->dev, "    read request: %s\n", scdc->read_request ? "yes" : "no");
+		dev_info(sor->dev, "    scrambling:\n");
+		dev_info(sor->dev, "      supported: %s\n", scdc->scrambling.supported ? "yes" : "no");
+
+		if (scdc->scrambling.supported)
+			dev_info(sor->dev, "      low rates: %s\n", scdc->scrambling.low_rates ? "yes" : "no");
+
+		schedule_delayed_work(&sor->scdc, msecs_to_jiffies(2500));
+	}
+
+out:
+	dev_info(sor->dev, "< %s() = %d\n", __func__, err);
+	return err;
+}
+
 static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 {
 	struct tegra_output *output = encoder_to_output(encoder);
@@ -1992,6 +2067,7 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	struct tegra_sor_state *state;
 	struct drm_display_mode *mode;
 	unsigned int div, i;
+	unsigned long rate;
 	u32 value;
 	int err;
 
@@ -2070,16 +2146,31 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	value &= ~SOR_CLK_CNTRL_DP_LINK_SPEED_MASK;
 	value &= ~SOR_CLK_CNTRL_DP_CLK_SEL_MASK;
 
-	if (mode->clock < 340000)
+	if (mode->clock < 340000) {
+		DRM_DEBUG_KMS("setting 2.7 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G2_70;
-	else
+	} else {
+		DRM_DEBUG_KMS("setting 5.4 GHz link speed\n");
 		value |= SOR_CLK_CNTRL_DP_LINK_SPEED_G5_40;
+	}
 
 	value |= SOR_CLK_CNTRL_DP_CLK_SEL_SINGLE_PCLK;
 	tegra_sor_writel(sor, value, SOR_CLK_CNTRL);
 
+#if 1
+	usleep_range(200, 400);
+
+	value = tegra_sor_readl(sor, SOR_DP_LINKCTL0);
+	value &= ~SOR_DP_LINKCTL_LANE_COUNT_MASK;
+	value |= SOR_DP_LINKCTL_LANE_COUNT(4);
+	tegra_sor_writel(sor, value, SOR_DP_LINKCTL0);
+#endif
+
 	value = tegra_sor_readl(sor, SOR_DP_SPARE0);
 	value |= SOR_DP_SPARE_DISP_VIDEO_PREAMBLE;
+#if 1
+	value |= SOR_DP_SPARE_MACRO_SOR_CLK; /* XXX */
+#endif
 	value &= ~SOR_DP_SPARE_PANEL_INTERNAL;
 	value |= SOR_DP_SPARE_SEQ_ENABLE;
 	tegra_sor_writel(sor, value, SOR_DP_SPARE0);
@@ -2113,6 +2204,14 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	err = tegra_sor_set_parent_clock(sor, sor->clk_src);
 	if (err < 0)
 		dev_err(sor->dev, "failed to set parent clock: %d\n", err);
+
+	/* adjust clock rate for HDMI 2.0 modes */
+	rate = clk_get_rate(sor->clk_parent);
+
+	if (mode->clock >= 340000)
+		rate /= 2;
+
+	clk_set_rate(sor->clk, rate);
 
 	value = SOR_INPUT_CONTROL_HDMI_SRC_SELECT(dc->pipe);
 
@@ -2178,6 +2277,14 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	tegra_sor_writel(sor, value, SOR_PLL0);
 
 	tegra_sor_dp_term_calibrate(sor);
+
+	/* XXX */
+#if 1
+	value = tegra_sor_readl(sor, SOR_PLL1);
+	value &= ~SOR_PLL1_TMDS_TERMADJ_MASK;
+	value |= SOR_PLL1_TMDS_TERMADJ(settings->termadj);
+	tegra_sor_writel(sor, value, SOR_PLL1);
+#endif
 
 	value = tegra_sor_readl(sor, SOR_PLL1);
 	value &= ~SOR_PLL1_LOADADJ_MASK;
@@ -2271,6 +2378,9 @@ static void tegra_sor_hdmi_enable(struct drm_encoder *encoder)
 	err = tegra_sor_wakeup(sor);
 	if (err < 0)
 		dev_err(sor->dev, "failed to wakeup SOR: %d\n", err);
+
+	if (sor->output.ddc)
+		tegra_sor_hdmi_scdc(sor);
 }
 
 static const struct drm_encoder_helper_funcs tegra_sor_hdmi_helpers = {
@@ -2467,6 +2577,8 @@ static int tegra_sor_hdmi_probe(struct tegra_sor *sor)
 		return err;
 	}
 
+	INIT_DELAYED_WORK(&sor->scdc, tegra_sor_hdmi_scdc_work);
+
 	return 0;
 }
 
@@ -2656,10 +2768,26 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
+	/*
+	 * The bootloader may have set up the SOR such that it's module clock
+	 * is sourced by one of the display PLLs. However, that doesn't work
+	 * without properly having set up other bits of the SOR.
+	 */
+	err = clk_set_parent(sor->clk, sor->clk_safe);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to use safe clock: %d\n", err);
+		goto remove;
+	}
+
 	platform_set_drvdata(pdev, sor);
 	pm_runtime_enable(&pdev->dev);
 
-	pm_runtime_get_sync(&pdev->dev);
+	err = pm_runtime_get_sync(&pdev->dev);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to get runtime PM: %d\n", err);
+		goto remove;
+	}
+
 	sor->clk_brick = tegra_clk_sor_brick_register(sor, "sor1_brick");
 	pm_runtime_put(&pdev->dev);
 
@@ -2741,9 +2869,14 @@ static int tegra_sor_resume(struct device *dev)
 	struct tegra_sor *sor = dev_get_drvdata(dev);
 	int err;
 
+	dev_info(dev, "> %s(dev=%p)\n", __func__, dev);
+	dev_info(dev, "  enabling clock %s...\n", __clk_get_name(sor->clk));
+
 	err = clk_prepare_enable(sor->clk);
+	dev_info(dev, "  done: %d\n", err);
 	if (err < 0) {
 		dev_err(dev, "failed to enable clock: %d\n", err);
+		dev_info(dev, "< %s() = %d\n", __func__, err);
 		return err;
 	}
 
@@ -2758,6 +2891,7 @@ static int tegra_sor_resume(struct device *dev)
 		}
 	}
 
+	dev_info(dev, "< %s()\n", __func__);
 	return 0;
 }
 #endif

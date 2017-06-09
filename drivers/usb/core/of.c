@@ -36,10 +36,15 @@ struct device_node *usb_of_get_child_node(struct device_node *parent,
 	struct device_node *node;
 	u32 port;
 
+	if (parent)
+		pr_info("trying to find OF node for %s port %d\n", parent->full_name, portnum);
+
 	for_each_child_of_node(parent, node) {
 		if (!of_property_read_u32(node, "reg", &port)) {
-			if (port == portnum)
+			if (port == portnum) {
+				pr_info("  found: %s\n", node->full_name);
 				return node;
+			}
 		}
 	}
 

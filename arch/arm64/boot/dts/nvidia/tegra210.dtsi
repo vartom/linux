@@ -843,6 +843,9 @@
 		nvidia,xusb-padctl = <&padctl>;
 
 		status = "disabled";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	padctl: padctl@7009f000 {

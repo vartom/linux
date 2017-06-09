@@ -301,9 +301,13 @@ static void clk_pll_enable_lock(struct tegra_clk_pll *pll)
 
 static int clk_pll_wait_for_lock(struct tegra_clk_pll *pll)
 {
+	const char *name = clk_hw_get_name(&pll->hw);
 	int i;
 	u32 val, lock_mask;
 	void __iomem *lock_addr;
+
+	pr_info("> %s(pll=%p)\n", __func__, pll);
+	pr_info("  PLL: %s\n", name);
 
 	if (!(pll->params->flags & TEGRA_PLL_USE_LOCK)) {
 		udelay(pll->params->lock_delay);
@@ -321,16 +325,28 @@ static int clk_pll_wait_for_lock(struct tegra_clk_pll *pll)
 	for (i = 0; i < pll->params->lock_delay; i++) {
 		val = readl_relaxed(lock_addr);
 		if ((val & lock_mask) == lock_mask) {
+			if (strcmp(name, "pll_d2") == 0) {
+				pr_info("PLL_D2: %p\n", lock_addr);
+				pr_info("  BASE: %08x\n", readl_relaxed(lock_addr + 0x0));
+				pr_info("  MISC: %08x\n", readl_relaxed(lock_addr + 0x4));
+			}
 			udelay(PLL_POST_LOCK_DELAY);
 			return 0;
 		}
 		udelay(2); /* timeout = 2 * lock time */
 	}
 
-	pr_err("%s: Timed out waiting for pll %s lock\n", __func__,
+	pr_err("%s: Timed out waiting for PLL %s lock\n", __func__,
 	       clk_hw_get_name(&pll->hw));
 
-	return -1;
+	if (strcmp(name, "pll_d2") == 0) {
+		pr_info("PLL_D2: %p\n", lock_addr);
+		pr_info("  BASE: %08x\n", readl_relaxed(lock_addr + 0x0));
+		pr_info("  MISC: %08x\n", readl_relaxed(lock_addr + 0x4));
+	}
+
+	pr_info("< %s() = -ETIMEDOUT\n", __func__);
+	return -ETIMEDOUT;
 }
 
 int tegra_pll_wait_for_lock(struct tegra_clk_pll *pll)

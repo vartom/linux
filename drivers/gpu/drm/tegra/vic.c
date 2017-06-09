@@ -259,11 +259,11 @@ static const struct tegra_drm_client_ops vic_ops = {
 };
 
 static const struct vic_config vic_t124_config = {
-	.firmware = "nvidia/tegra124/vic03_ucode.bin",
+	.firmware = "nvidia/tegra124/vic.bin",
 };
 
 static const struct vic_config vic_t210_config = {
-	.firmware = "nvidia/tegra210/vic04_ucode.bin",
+	.firmware = "nvidia/tegra210/vic.bin",
 };
 
 static const struct of_device_id vic_match[] = {
