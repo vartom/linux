@@ -15,6 +15,8 @@
  * are also included.
  */
 
+#define DEBUG
+
 #include <linux/usb/otg.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/chipidea.h>
