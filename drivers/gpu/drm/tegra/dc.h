@@ -33,6 +33,7 @@ struct tegra_dc_soc_info {
 	unsigned int pitch_align;
 	bool has_powergate;
 	bool broken_reset;
+	bool has_nvdisplay;
 };
 
 struct tegra_dc {
@@ -170,6 +171,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define CTXSW_INT     (1 << 0)
 #define FRAME_END_INT (1 << 1)
 #define VBLANK_INT    (1 << 2)
+#define REG_TMOUT_INT (1 << 7)
 #define WIN_A_UF_INT  (1 << 8)
 #define WIN_B_UF_INT  (1 << 9)
 #define WIN_C_UF_INT  (1 << 10)
@@ -249,9 +251,9 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define HDMI_ENABLE	(1 << 30)
 #define DSI_ENABLE	(1 << 29)
 #define SOR1_TIMING_CYA	(1 << 27)
-#define SOR1_ENABLE	(1 << 26)
-#define SOR_ENABLE	(1 << 25)
 #define CURSOR_ENABLE	(1 << 16)
+
+#define SOR_ENABLE(x)	(1 << (25 + (x)))
 
 #define DC_DISP_DISP_MEM_HIGH_PRIORITY		0x403
 #define CURSOR_THRESHOLD(x)   (((x) & 0x03) << 24)
@@ -360,29 +362,33 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DISP_ORDER_BLUE_RED        (1 << 9)
 
 #define DC_DISP_DISP_COLOR_CONTROL		0x430
-#define BASE_COLOR_SIZE666     (0 << 0)
-#define BASE_COLOR_SIZE111     (1 << 0)
-#define BASE_COLOR_SIZE222     (2 << 0)
-#define BASE_COLOR_SIZE333     (3 << 0)
-#define BASE_COLOR_SIZE444     (4 << 0)
-#define BASE_COLOR_SIZE555     (5 << 0)
-#define BASE_COLOR_SIZE565     (6 << 0)
-#define BASE_COLOR_SIZE332     (7 << 0)
-#define BASE_COLOR_SIZE888     (8 << 0)
+#define BASE_COLOR_SIZE666     ( 0 << 0)
+#define BASE_COLOR_SIZE111     ( 1 << 0)
+#define BASE_COLOR_SIZE222     ( 2 << 0)
+#define BASE_COLOR_SIZE333     ( 3 << 0)
+#define BASE_COLOR_SIZE444     ( 4 << 0)
+#define BASE_COLOR_SIZE555     ( 5 << 0)
+#define BASE_COLOR_SIZE565     ( 6 << 0)
+#define BASE_COLOR_SIZE332     ( 7 << 0)
+#define BASE_COLOR_SIZE888     ( 8 << 0)
+#define BASE_COLOR_SIZE101010  (10 << 0)
+#define BASE_COLOR_SIZE121212  (12 << 0)
 #define DITHER_CONTROL_MASK    (3 << 8)
 #define DITHER_CONTROL_DISABLE (0 << 8)
 #define DITHER_CONTROL_ORDERED (2 << 8)
 #define DITHER_CONTROL_ERRDIFF (3 << 8)
 #define BASE_COLOR_SIZE_MASK   (0xf << 0)
-#define BASE_COLOR_SIZE_666    (0 << 0)
-#define BASE_COLOR_SIZE_111    (1 << 0)
-#define BASE_COLOR_SIZE_222    (2 << 0)
-#define BASE_COLOR_SIZE_333    (3 << 0)
-#define BASE_COLOR_SIZE_444    (4 << 0)
-#define BASE_COLOR_SIZE_555    (5 << 0)
-#define BASE_COLOR_SIZE_565    (6 << 0)
-#define BASE_COLOR_SIZE_332    (7 << 0)
-#define BASE_COLOR_SIZE_888    (8 << 0)
+#define BASE_COLOR_SIZE_666    (  0 << 0)
+#define BASE_COLOR_SIZE_111    (  1 << 0)
+#define BASE_COLOR_SIZE_222    (  2 << 0)
+#define BASE_COLOR_SIZE_333    (  3 << 0)
+#define BASE_COLOR_SIZE_444    (  4 << 0)
+#define BASE_COLOR_SIZE_555    (  5 << 0)
+#define BASE_COLOR_SIZE_565    (  6 << 0)
+#define BASE_COLOR_SIZE_332    (  7 << 0)
+#define BASE_COLOR_SIZE_888    (  8 << 0)
+#define BASE_COLOR_SIZE_101010 ( 10 << 0)
+#define BASE_COLOR_SIZE_121212 ( 12 << 0)
 
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
 #define  SC1_H_QUALIFIER_NONE	(1 << 16)
@@ -521,16 +527,16 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define WIN_COLOR_DEPTH_YUV422RA       25
 
 #define DC_WIN_POSITION				0x704
-#define H_POSITION(x) (((x) & 0x1fff) <<  0)
-#define V_POSITION(x) (((x) & 0x1fff) << 16)
+#define H_POSITION(x) (((x) & 0x1fff) <<  0) /* XXX 0x7fff on Tegra186 */
+#define V_POSITION(x) (((x) & 0x1fff) << 16) /* XXX 0x7fff on Tegra186 */
 
 #define DC_WIN_SIZE				0x705
-#define H_SIZE(x) (((x) & 0x1fff) <<  0)
-#define V_SIZE(x) (((x) & 0x1fff) << 16)
+#define H_SIZE(x) (((x) & 0x1fff) <<  0) /* XXX 0x7fff on Tegra186 */
+#define V_SIZE(x) (((x) & 0x1fff) << 16) /* XXX 0x7fff on Tegra186 */
 
 #define DC_WIN_PRESCALED_SIZE			0x706
 #define H_PRESCALED_SIZE(x) (((x) & 0x7fff) <<  0)
-#define V_PRESCALED_SIZE(x) (((x) & 0x1fff) << 16)
+#define V_PRESCALED_SIZE(x) (((x) & 0x1fff) << 16) /* XXX 0x7fff on Tegra186 */
 
 #define DC_WIN_H_INITIAL_DDA			0x707
 #define DC_WIN_V_INITIAL_DDA			0x708
@@ -546,6 +552,7 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_WIN_BUFFER_ADDR_MODE_TILE		(1 <<  0)
 #define DC_WIN_BUFFER_ADDR_MODE_LINEAR_UV	(0 << 16)
 #define DC_WIN_BUFFER_ADDR_MODE_TILE_UV		(1 << 16)
+
 #define DC_WIN_DV_CONTROL			0x70e
 
 #define DC_WIN_BLEND_NOKEY			0x70f
@@ -574,9 +581,30 @@ int tegra_dc_rgb_exit(struct tegra_dc *dc);
 #define DC_WINBUF_SURFACE_KIND_TILED	(1 << 0)
 #define DC_WINBUF_SURFACE_KIND_BLOCK	(2 << 0)
 #define DC_WINBUF_SURFACE_KIND_BLOCK_HEIGHT(x) (((x) & 0x7) << 4)
+#define DC_WINBUF_START_ADDR_HI			0x80d
 
 #define DC_WINBUF_AD_UFLOW_STATUS		0xbca
 #define DC_WINBUF_BD_UFLOW_STATUS		0xdca
 #define DC_WINBUF_CD_UFLOW_STATUS		0xfca
+
+/* Tegra186 and later */
+#define DC_DISP_CORE_SOR_SET_CONTROL(x)		(0x403 + (x))
+#define PROTOCOL_MASK (0xf << 8)
+#define PROTOCOL_SINGLE_TMDS_A (0x1 << 8)
+
+#define DC_WIN_CORE_WINDOWGROUP_SET_CONTROL	0x702
+#define OWNER_MASK (0xf << 0)
+#define OWNER(x) (((x) & 0xf) << 0)
+
+#define DC_WIN_CROPPED_SIZE			0x706
+
+#define DC_WIN_PLANAR_STORAGE			0x709
+#define PITCH(x) (((x) >> 6) & 0x1fff)
+
+#define DC_WIN_SET_PARAMS			0x70d
+
+#define DC_WINBUF_CROPPED_POINT			0x806
+#define OFFSET_Y(x) (((x) & 0xffff) << 16)
+#define OFFSET_X(x) (((x) & 0xffff) << 0)
 
 #endif /* TEGRA_DC_H */

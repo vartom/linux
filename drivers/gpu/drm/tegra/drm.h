@@ -190,6 +190,7 @@ void tegra_fbdev_restore_mode(struct tegra_fbdev *fbdev);
 void tegra_fb_output_poll_changed(struct drm_device *drm);
 #endif
 
+extern struct platform_driver tegra_display_driver;
 extern struct platform_driver tegra_dc_driver;
 extern struct platform_driver tegra_hdmi_driver;
 extern struct platform_driver tegra_dsi_driver;

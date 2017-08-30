@@ -4,6 +4,7 @@ tegra-drm-y := \
 	drm.o \
 	gem.o \
 	fb.o \
+	hub.o \
 	dc.o \
 	output.o \
 	rgb.o \
