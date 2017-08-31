@@ -219,6 +219,7 @@ struct arm_smmu_device {
 
 	/* IOMMU core code handle */
 	struct iommu_device		iommu;
+	struct iommu_domain		**domains;
 };
 
 enum arm_smmu_context_fmt {
@@ -564,6 +565,24 @@ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t arm_smmu_invoke_context_fault(int irq, void *dev)
+{
+	int i;
+	struct arm_smmu_device *smmu = dev;
+
+	for (i = 0; i < smmu->num_context_banks; i++) {
+		void __iomem *cb_base;
+		u32 fsr;
+
+		cb_base = ARM_SMMU_CB(smmu, i);
+		fsr = readl_relaxed(cb_base + ARM_SMMU_CB_FSR);
+		if (fsr & FSR_FAULT)
+			return arm_smmu_context_fault(irq, smmu->domains[i]);
+	}
+
+	return IRQ_NONE;
+}
+
 static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 {
 	u32 gfsr, gfsynr0, gfsynr1, gfsynr2;
@@ -575,8 +594,12 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 	gfsynr1 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR1);
 	gfsynr2 = readl_relaxed(gr0_base + ARM_SMMU_GR0_sGFSYNR2);
 
-	if (!gfsr)
-		return IRQ_NONE;
+	if (!gfsr) {
+		if (!smmu->num_context_irqs)
+			return arm_smmu_invoke_context_fault(irq, dev);
+		else
+			return IRQ_NONE;
+	}
 
 	dev_err_ratelimited(smmu->dev,
 		"Unexpected global fault, this could be serious\n");
@@ -850,8 +873,11 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	if (smmu->version < ARM_SMMU_V2) {
 		cfg->irptndx = atomic_inc_return(&smmu->irptndx);
 		cfg->irptndx %= smmu->num_context_irqs;
-	} else {
+	} else if (smmu->num_context_banks == smmu->num_context_irqs) {
 		cfg->irptndx = cfg->cbndx;
+	} else if (!smmu->num_context_irqs){
+		cfg->irptndx = INVALID_IRPTNDX;
+		smmu->domains[cfg->cbndx] = domain;
 	}
 
 	if (smmu_domain->stage == ARM_SMMU_DOMAIN_S2)
@@ -890,13 +916,15 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 	 * Request context fault interrupt. Do this last to avoid the
 	 * handler seeing a half-initialised domain state.
 	 */
-	irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
-	ret = devm_request_irq(smmu->dev, irq, arm_smmu_context_fault,
-			       IRQF_SHARED, "arm-smmu-context-fault", domain);
-	if (ret < 0) {
-		dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
-			cfg->irptndx, irq);
-		cfg->irptndx = INVALID_IRPTNDX;
+	if (smmu->num_context_irqs) {
+		irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
+		ret = devm_request_irq(smmu->dev, irq, arm_smmu_context_fault,
+				       IRQF_SHARED, "arm-smmu-context-fault", domain);
+		if (ret < 0) {
+			dev_err(smmu->dev, "failed to request context IRQ %d (%u)\n",
+				cfg->irptndx, irq);
+			cfg->irptndx = INVALID_IRPTNDX;
+		}
 	}
 
 	mutex_unlock(&smmu_domain->init_mutex);
@@ -2074,9 +2102,14 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	if (!smmu->num_context_irqs) {
-		dev_err(dev, "found %d interrupts but expected at least %d\n",
-			num_irqs, smmu->num_global_irqs + 1);
-		return -ENODEV;
+		smmu->domains = devm_kzalloc(dev,
+					     sizeof(*smmu->domains) *
+					     smmu->num_context_banks,
+					     GFP_KERNEL);
+		if (!smmu->domains) {
+			dev_err(dev, "failed to allocate domain array\n");
+			return -ENOMEM;
+		}
 	}
 
 	smmu->irqs = devm_kzalloc(dev, sizeof(*smmu->irqs) * num_irqs,
@@ -2101,11 +2134,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return err;
 
 	if (smmu->version == ARM_SMMU_V2 &&
+	    !smmu->num_context_irqs &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
 		dev_err(dev,
 			"found only %d context interrupt(s) but %d required\n",
 			smmu->num_context_irqs, smmu->num_context_banks);
-		return -ENODEV;
 	}
 
 	for (i = 0; i < smmu->num_global_irqs; ++i) {
