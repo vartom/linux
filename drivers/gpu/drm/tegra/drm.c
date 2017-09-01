@@ -33,6 +33,25 @@ struct tegra_drm_file {
 	struct mutex lock;
 };
 
+static int tegra_atomic_check(struct drm_device *drm,
+			      struct drm_atomic_state *state)
+{
+	struct tegra_drm *tegra = drm->dev_private;
+	int err;
+
+	err = drm_atomic_helper_check(drm, state);
+	if (err < 0)
+		return err;
+
+	if (tegra->hub) {
+		err = tegra_display_hub_atomic_check(drm, state);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static void tegra_atomic_schedule(struct tegra_drm *tegra,
 				  struct drm_atomic_state *state)
 {
@@ -60,6 +79,9 @@ static void tegra_atomic_complete(struct tegra_drm *tegra,
 	 * composition of the next frame right after having submitted the
 	 * current layout.
 	 */
+
+	if (tegra->hub)
+		tegra_display_hub_atomic_commit(drm, state);
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
@@ -117,13 +139,43 @@ static int tegra_atomic_commit(struct drm_device *drm,
 	return 0;
 }
 
+static struct drm_atomic_state *
+tegra_atomic_state_alloc(struct drm_device *drm)
+{
+	struct tegra_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(drm, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+static void tegra_atomic_state_clear(struct drm_atomic_state *state)
+{
+	struct tegra_atomic_state *tegra = to_tegra_atomic_state(state);
+
+	drm_atomic_state_default_clear(state);
+	tegra->clk_disp = NULL;
+}
+
+static void tegra_atomic_state_free(struct drm_atomic_state *state)
+{
+	drm_atomic_state_default_release(state);
+	kfree(state);
+}
+
 static const struct drm_mode_config_funcs tegra_drm_mode_funcs = {
 	.fb_create = tegra_fb_create,
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 	.output_poll_changed = tegra_fb_output_poll_changed,
 #endif
-	.atomic_check = drm_atomic_helper_check,
+	.atomic_check = tegra_atomic_check,
 	.atomic_commit = tegra_atomic_commit,
+	.atomic_state_alloc = tegra_atomic_state_alloc,
+	.atomic_state_clear = tegra_atomic_state_clear,
+	.atomic_state_free = tegra_atomic_state_free,
 };
 
 static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
@@ -144,6 +196,19 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 		tegra->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!tegra->domain) {
 			err = -ENOMEM;
+			goto free;
+		}
+
+		err = iommu_attach_device(tegra->domain, drm->dev->parent);
+		if (err < 0) {
+			if (err == -ENODEV) {
+				iommu_domain_free(tegra->domain);
+				tegra->domain = NULL;
+				goto skip_iommu;
+			}
+
+			dev_err(drm->dev, "failed to attach device to IOMMU: %d\n", err);
+			iommu_domain_free(tegra->domain);
 			goto free;
 		}
 
@@ -170,6 +235,7 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 			  carveout_end);
 	}
 
+skip_iommu:
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
 
@@ -1319,6 +1385,9 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra210-vic", },
 	{ .compatible = "nvidia,tegra186-display", },
 	{ .compatible = "nvidia,tegra186-dc", },
+	{ .compatible = "nvidia,tegra186-dsi", },
+	{ .compatible = "nvidia,tegra186-sor", },
+	{ .compatible = "nvidia,tegra186-sor1", },
 	{ .compatible = "nvidia,tegra186-vic", },
 	{ /* sentinel */ }
 };
@@ -1334,7 +1403,7 @@ static struct host1x_driver host1x_drm_driver = {
 };
 
 static struct platform_driver * const drivers[] = {
-	&tegra_display_driver,
+	&tegra_display_hub_driver,
 	&tegra_dc_driver,
 	&tegra_hdmi_driver,
 	&tegra_dsi_driver,

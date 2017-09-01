@@ -23,6 +23,7 @@
 
 	gpu@57000000 {
 		vdd-supply = <&vdd_gpu>;
+		status = "disabled";
 	};
 
 	/* debug port */
@@ -276,6 +277,12 @@
 
 	pmc@7000e400 {
 		nvidia,invert-interrupt;
+	};
+
+	usb@70090000 {
+		usb@1 {
+			reg = <1>;
+		};
 	};
 
 	/* eMMC */

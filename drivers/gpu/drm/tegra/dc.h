@@ -14,9 +14,28 @@
 
 #include <drm/drm_crtc.h>
 
+#include "dc.h"
 #include "drm.h"
 
 struct tegra_output;
+
+struct tegra_dc_state {
+	struct drm_crtc_state base;
+
+	struct clk *clk;
+	unsigned long pclk;
+	unsigned int div;
+
+	u32 planes;
+};
+
+static inline struct tegra_dc_state *to_dc_state(struct drm_crtc_state *state)
+{
+	if (state)
+		return container_of(state, struct tegra_dc_state, base);
+
+	return NULL;
+}
 
 struct tegra_dc_stats {
 	unsigned long frames;
@@ -82,6 +101,9 @@ static inline struct tegra_dc *to_tegra_dc(struct drm_crtc *crtc)
 static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
 				   unsigned int offset)
 {
+	if (1 && offset != 0x37)
+		dev_dbg(dc->dev, "%08x < %08x\n", offset << 2, value);
+
 	trace_dc_writel(dc->dev, offset, value);
 	writel(value, dc->regs + (offset << 2));
 }
@@ -89,6 +111,9 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, u32 value,
 static inline u32 tegra_dc_readl(struct tegra_dc *dc, unsigned int offset)
 {
 	u32 value = readl(dc->regs + (offset << 2));
+
+	if (1 && offset != 0x37)
+		dev_dbg(dc->dev, "%08x > %08x\n", offset << 2, value);
 
 	trace_dc_readl(dc->dev, offset, value);
 
