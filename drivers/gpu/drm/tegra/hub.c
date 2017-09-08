@@ -478,12 +478,6 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	if (1) {
-		long max = clk_round_rate(hub->clk_hub, ULONG_MAX);
-
-		dev_dbg(&pdev->dev, "maximum hub rate: %ld\n", max);
-	}
-
 	platform_set_drvdata(pdev, hub);
 	pm_runtime_enable(&pdev->dev);
 

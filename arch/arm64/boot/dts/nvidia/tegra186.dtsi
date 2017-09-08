@@ -59,6 +59,8 @@
 		reset-names = "eqos";
 		status = "disabled";
 
+		//iommus = <&smmu TEGRA186_SID_EQOS>;
+
 		snps,write-requests = <1>;
 		snps,read-requests = <3>;
 		snps,burst-map = <0x7>;
@@ -235,6 +237,8 @@
 		resets = <&bpmp TEGRA186_RESET_SDMMC1>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC1>;
 	};
 
 	sdmmc2: sdhci@3420000 {
@@ -246,6 +250,8 @@
 		resets = <&bpmp TEGRA186_RESET_SDMMC2>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC2>;
 	};
 
 	sdmmc3: sdhci@3440000 {
@@ -257,6 +263,8 @@
 		resets = <&bpmp TEGRA186_RESET_SDMMC3>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC3>;
 	};
 
 	sdmmc4: sdhci@3460000 {
@@ -268,6 +276,8 @@
 		resets = <&bpmp TEGRA186_RESET_SDMMC4>;
 		reset-names = "sdhci";
 		status = "disabled";
+
+		iommus = <&smmu TEGRA186_SID_SDMMC4>;
 	};
 
 	padctl: padctl@3520000 {
@@ -544,7 +554,7 @@
 
 		ranges = <0x0 0x15000000 0x0 0x15000000 0x0 0x1000000>;
 
-		//iommus = <&smmu TEGRA186_SID_HOST1X>;
+		iommus = <&smmu TEGRA186_SID_HOST1X>;
 
 		dpaux1: dpaux@15040000 {
 			compatible = "nvidia,tegra186-dpaux";
@@ -625,7 +635,7 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
-				//iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
+				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
 				nvidia,head = <0>;
@@ -641,7 +651,7 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISPB>;
-				//iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
+				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&dsia &dsib &sor0 &sor1>;
 				nvidia,head = <1>;
@@ -657,7 +667,7 @@
 				reset-names = "dc";
 
 				power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISPC>;
-				//iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
+				iommus = <&smmu TEGRA186_SID_NVDISPLAY>;
 
 				nvidia,outputs = <&sor0 &sor1>;
 				nvidia,head = <2>;
@@ -881,11 +891,11 @@
 	smmu: iommu@12000000 {
 		compatible = "arm,mmu-500";
 		reg = <0x0 0x12000000 0x0 0x800000>;
-		#global-interrupts = <2>;
-		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
+		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
 
+		stream-match-mask = <0x7f80>;
+		#global-interrupts = <1>;
 		#iommu-cells = <1>;
 	};
 

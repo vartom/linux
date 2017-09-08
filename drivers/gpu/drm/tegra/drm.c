@@ -199,19 +199,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 			goto free;
 		}
 
-		err = iommu_attach_device(tegra->domain, drm->dev->parent);
-		if (err < 0) {
-			if (err == -ENODEV) {
-				iommu_domain_free(tegra->domain);
-				tegra->domain = NULL;
-				goto skip_iommu;
-			}
-
-			dev_err(drm->dev, "failed to attach device to IOMMU: %d\n", err);
-			iommu_domain_free(tegra->domain);
-			goto free;
-		}
-
 		geometry = &tegra->domain->geometry;
 		gem_start = geometry->aperture_start;
 		gem_end = geometry->aperture_end - CARVEOUT_SZ;
@@ -235,7 +222,6 @@ static int tegra_drm_load(struct drm_device *drm, unsigned long flags)
 			  carveout_end);
 	}
 
-skip_iommu:
 	mutex_init(&tegra->clients_lock);
 	INIT_LIST_HEAD(&tegra->clients);
 

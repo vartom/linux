@@ -1553,11 +1553,18 @@ static int tegra_dc_init(struct host1x_client *client)
 		dev_warn(dc->dev, "failed to allocate syncpoint\n");
 
 	if (tegra->domain) {
-		err = iommu_attach_device(tegra->domain, dc->dev);
-		if (err < 0) {
-			dev_err(dc->dev, "failed to attach to domain: %d\n",
-				err);
-			return err;
+		struct iommu_group *group = iommu_group_get(dc->dev);
+
+		if (group != tegra->group) {
+			err = iommu_attach_group(tegra->domain, group);
+			if (err < 0) {
+				dev_err(dc->dev,
+					"failed to attach to domain: %d\n",
+					err);
+				return err;
+			}
+
+			tegra->group = group;
 		}
 
 		dc->domain = tegra->domain;
