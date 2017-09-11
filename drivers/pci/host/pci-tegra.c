@@ -236,7 +236,6 @@ struct tegra_msi {
 	struct msi_controller chip;
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
 	struct irq_domain *domain;
-	unsigned long pages;
 	struct mutex lock;
 	u64 phys;
 	int irq;
@@ -1576,9 +1575,32 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 		goto err;
 	}
 
-	/* setup AFI/FPCI range */
-	msi->pages = __get_free_pages(GFP_KERNEL, 0);
-	msi->phys = virt_to_phys((void *)msi->pages);
+	/*
+	 * The PCI host bridge on Tegra contains some logic that intercepts
+	 * MSI writes, which means that the MSI target address doesn't have
+	 * to point to actual physical memory. Rather than allocating one 4
+	 * KiB page of system memory that's never used, we can simply pick
+	 * an arbitrary address within an area reserved for system memory
+	 * in the FPCI address map.
+	 *
+	 * However, in order to avoid confusion, we pick an address that
+	 * doesn't map to physical memory. The FPCI address map reserves a
+	 * 1012 GiB region for system memory and memory-mapped I/O. Since
+	 * none of the Tegra SoCs that contain this PCI host bridge can
+	 * address more than 16 GiB of system memory, the last 4 KiB of
+	 * these 1012 GiB is a good candidate.
+	 *
+	 * Unfortunately, Tegra20 is slightly different in that the physical
+	 * address for this MSI region is limited to the lower 32 bits of the
+	 * address map, so the address that we pick is going to have to be
+	 * located somewhere within the region addressable by the CPU and
+	 * on-SoC controllers. To be on the safe side, we select an address
+	 * from a region that is marked unused (0xf0010000 - 0xfffeffff).
+	 */
+	if (soc->msi_base_shift > 0)
+		msi->phys = 0xfcfffff000;
+	else
+		msi->phys = 0x00f0010000;
 
 	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
 	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
@@ -1629,8 +1651,6 @@ static int tegra_pcie_disable_msi(struct tegra_pcie *pcie)
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC5);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC6);
 	afi_writel(pcie, 0, AFI_MSI_EN_VEC7);
-
-	free_pages(msi->pages, 0);
 
 	if (msi->irq > 0)
 		free_irq(msi->irq, pcie);
