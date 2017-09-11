@@ -1563,8 +1563,18 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 	 * none of the Tegra SoCs that contain this PCI host bridge can
 	 * address more than 16 GiB of system memory, the last 4 KiB of
 	 * these 1012 GiB is a good candidate.
+	 *
+	 * Unfortunately, Tegra20 is slightly different in that the physical
+	 * address for this MSI region is limited to the lower 32 bits of the
+	 * address map, so the address that we pick is going to have to be
+	 * located somewhere within the region addressable by the CPU and
+	 * on-SoC controllers. To be on the safe side, we select an address
+	 * from a region that is marked unused (0xf0010000 - 0xfffeffff).
 	 */
-	msi->phys = 0xfcfffff000;
+	if (soc->msi_base_shift > 0)
+		msi->phys = 0xfcfffff000;
+	else
+		msi->phys = 0x00f0010000;
 
 	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
 	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
