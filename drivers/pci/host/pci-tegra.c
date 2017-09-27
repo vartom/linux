@@ -245,6 +245,7 @@ struct tegra_msi {
 struct tegra_pcie_soc {
 	unsigned int num_ports;
 	unsigned int msi_base_shift;
+	u64 msi_target;
 	u32 pads_pll_ctl;
 	u32 tx_ref_sel;
 	u32 pads_refclk_cfg0;
@@ -1580,27 +1581,24 @@ static int tegra_pcie_enable_msi(struct tegra_pcie *pcie)
 	 * MSI writes, which means that the MSI target address doesn't have
 	 * to point to actual physical memory. Rather than allocating one 4
 	 * KiB page of system memory that's never used, we can simply pick
-	 * an arbitrary address within an area reserved for system memory
-	 * in the FPCI address map.
+	 * an arbitrary address within a reserved area in the FPCI address
+	 * map.
 	 *
-	 * However, in order to avoid confusion, we pick an address that
-	 * doesn't map to physical memory. The FPCI address map reserves a
-	 * 1012 GiB region for system memory and memory-mapped I/O. Since
-	 * none of the Tegra SoCs that contain this PCI host bridge can
-	 * address more than 16 GiB of system memory, the last 4 KiB of
-	 * these 1012 GiB is a good candidate.
+	 * Note that MSI writes are never committed to memory, so it doesn't
+	 * really matter which address we pick. However, since the address
+	 * may show up at some point and potentially confuse users, the best
+	 * solution would be to pick an address that is obviously not within
+	 * system memory. The FPCI address map contains a range that cannot
+	 * be accessed by any Tegra CPU, but unfortunately that excludes the
+	 * usage for 32-bit MSI capable devices.
 	 *
-	 * Unfortunately, Tegra20 is slightly different in that the physical
-	 * address for this MSI region is limited to the lower 32 bits of the
-	 * address map, so the address that we pick is going to have to be
-	 * located somewhere within the region addressable by the CPU and
-	 * on-SoC controllers. To be on the safe side, we select an address
-	 * from a region that is marked unused (0xf0010000 - 0xfffeffff).
+	 * Instead, in order to support both 32-bit and 64-bit MSI, choose a
+	 * memory address within the PCI MMIO region that is currently not
+	 * used for configuration space, downstream I/O, prefetchable or non
+	 * prefetchable memory. This is hard-coded on a per-chip basis and
+	 * is hopefully clear enough not to confuse anyone.
 	 */
-	if (soc->msi_base_shift > 0)
-		msi->phys = 0xfcfffff000;
-	else
-		msi->phys = 0x00f0010000;
+	msi->phys = soc->msi_target;
 
 	afi_writel(pcie, msi->phys >> soc->msi_base_shift, AFI_MSI_FPCI_BAR_ST);
 	afi_writel(pcie, msi->phys, AFI_MSI_AXI_BAR_ST);
@@ -2160,6 +2158,7 @@ static void tegra_pcie_enable_ports(struct tegra_pcie *pcie)
 static const struct tegra_pcie_soc tegra20_pcie = {
 	.num_ports = 2,
 	.msi_base_shift = 0,
+	.msi_target = 0x81fff000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA20,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_DIV10,
 	.pads_refclk_cfg0 = 0xfa5cfa5c,
@@ -2175,6 +2174,7 @@ static const struct tegra_pcie_soc tegra20_pcie = {
 static const struct tegra_pcie_soc tegra30_pcie = {
 	.num_ports = 3,
 	.msi_base_shift = 8,
+	.msi_target = 0x01fff000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0xfa5cfa5c,
@@ -2191,6 +2191,7 @@ static const struct tegra_pcie_soc tegra30_pcie = {
 static const struct tegra_pcie_soc tegra124_pcie = {
 	.num_ports = 2,
 	.msi_base_shift = 8,
+	.msi_target = 0x01fff000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x44ac44ac,
@@ -2206,6 +2207,7 @@ static const struct tegra_pcie_soc tegra124_pcie = {
 static const struct tegra_pcie_soc tegra210_pcie = {
 	.num_ports = 2,
 	.msi_base_shift = 8,
+	.msi_target = 0x01fff000,
 	.pads_pll_ctl = PADS_PLL_CTL_TEGRA30,
 	.tx_ref_sel = PADS_PLL_CTL_TXCLKREF_BUF_EN,
 	.pads_refclk_cfg0 = 0x90b890b8,
