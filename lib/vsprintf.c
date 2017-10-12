@@ -19,6 +19,7 @@
 #include <stdarg.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/dma-fence.h>
 #include <linux/module.h>	/* for KSYM_SYMBOL_LEN */
 #include <linux/types.h>
 #include <linux/string.h>
@@ -1591,6 +1592,16 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
 	return widen_string(buf, buf - buf_start, end, spec);
 }
 
+static noinline_for_stack
+char *dma_fence_string(char *buf, char *end, struct dma_fence *fence,
+		       struct printf_spec spec, const char *fmt)
+{
+	if (!fence || !fence->ops || !fence->ops->get_timeline_name)
+		return string(buf, end, "(null)", spec);
+
+	return string(buf, end, fence->ops->get_timeline_name(fence), spec);
+}
+
 int kptr_restrict __read_mostly;
 
 /*
@@ -1842,6 +1853,10 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 	case 'C':
 		return clock(buf, end, ptr, spec, fmt);
 	case 'D':
+		switch (fmt[1]) {
+		case 'F':
+			return dma_fence_string(buf, end, ptr, spec, fmt + 1);
+		}
 		return dentry_name(buf, end,
 				   ((const struct file *)ptr)->f_path.dentry,
 				   spec, fmt);
