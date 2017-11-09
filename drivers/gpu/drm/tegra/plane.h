@@ -18,6 +18,9 @@ struct tegra_plane {
 	unsigned int offset;
 	unsigned int index;
 	unsigned int depth;
+
+	unsigned int usecount;
+	struct mutex lock;
 };
 
 struct tegra_cursor {
@@ -31,6 +34,12 @@ struct tegra_cursor {
 static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 {
 	return container_of(plane, struct tegra_plane, base);
+}
+
+static inline void tegra_plane_init(struct tegra_plane *plane)
+{
+	mutex_init(&plane->lock);
+	plane->usecount = 0;
 }
 
 struct tegra_plane_state {
@@ -57,5 +66,8 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 
 int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap);
 bool tegra_plane_format_is_yuv(unsigned int format, bool *planar);
+
+void tegra_plane_get(struct tegra_plane *plane);
+void tegra_plane_put(struct tegra_plane *plane);
 
 #endif /* TEGRA_PLANE_H */

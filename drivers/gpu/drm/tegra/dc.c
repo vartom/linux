@@ -495,6 +495,8 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	tegra_plane_init(plane);
+
 	num_formats = ARRAY_SIZE(tegra_primary_plane_formats);
 	formats = tegra_primary_plane_formats;
 
@@ -660,6 +662,8 @@ static struct drm_plane *tegra_dc_cursor_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	tegra_plane_init(plane);
+
 	/*
 	 * This index is kind of fake. The cursor isn't a regular plane, but
 	 * its update and activation request bits in DC_CMD_STATE_CONTROL do
@@ -710,6 +714,8 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	plane = kzalloc(sizeof(*plane), GFP_KERNEL);
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
+
+	tegra_plane_init(plane);
 
 	/* XXX compute offset so that we can directly access windows */
 	plane->offset = 0;

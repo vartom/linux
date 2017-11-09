@@ -537,6 +537,7 @@ struct drm_plane *tegra_shared_plane_create(struct drm_device *drm,
 	if (!plane)
 		return ERR_PTR(-ENOMEM);
 
+	tegra_plane_init(&plane->base);
 	plane->base.offset = 0x0a00 + 0x0300 * index;
 	plane->base.index = index;
 	plane->base.depth = 0;
