@@ -57,6 +57,7 @@ struct tegra_dc_soc_info {
 	bool supports_interlacing;
 	bool supports_cursor;
 	bool supports_block_linear;
+	bool supports_blending;
 	unsigned int pitch_align;
 	bool has_powergate;
 	bool broken_reset;
@@ -69,7 +70,6 @@ struct tegra_dc {
 	struct host1x_client client;
 	struct host1x_syncpt *syncpt;
 	struct device *dev;
-	spinlock_t lock;
 
 	struct drm_crtc base;
 	unsigned int powergate;
@@ -142,6 +142,7 @@ struct tegra_dc_window {
 	unsigned int bits_per_pixel;
 	unsigned int stride[2];
 	unsigned long base[3];
+	unsigned int zpos;
 	bool bottom_up;
 
 	struct tegra_bo_tiling tiling;
