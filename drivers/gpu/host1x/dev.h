@@ -120,6 +120,7 @@ struct host1x {
 
 	u64 fence_ctx_base;
 
+	struct iommu_group *group;
 	struct iommu_domain *domain;
 	struct iova_domain iova;
 	dma_addr_t iova_end;
