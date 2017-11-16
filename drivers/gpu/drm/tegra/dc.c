@@ -419,25 +419,6 @@ static const u32 tegra124_primary_formats[] = {
 	DRM_FORMAT_BGRX8888,
 };
 
-static const u32 tegra186_primary_formats[] = {
-	DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGBA5551,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	/* new on Tegra114 */
-	DRM_FORMAT_ABGR4444,
-	DRM_FORMAT_ABGR1555,
-	DRM_FORMAT_BGRA5551,
-	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_RGBX5551,
-	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_BGRX5551,
-	DRM_FORMAT_BGR565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
-};
-
 static int tegra_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
@@ -861,30 +842,6 @@ static const u32 tegra124_overlay_formats[] = {
 	/* new on Tegra124 */
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRX8888,
-	/* planar formats */
-	DRM_FORMAT_UYVY,
-	DRM_FORMAT_YUYV,
-	DRM_FORMAT_YUV420,
-	DRM_FORMAT_YUV422,
-};
-
-static const u32 tegra186_overlay_formats[] = {
-	DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_RGB565,
-	DRM_FORMAT_RGBA5551,
-	DRM_FORMAT_ARGB8888,
-	DRM_FORMAT_ABGR8888,
-	/* new on Tegra114 */
-	DRM_FORMAT_ABGR4444,
-	DRM_FORMAT_ABGR1555,
-	DRM_FORMAT_BGRA5551,
-	DRM_FORMAT_XRGB1555,
-	DRM_FORMAT_RGBX5551,
-	DRM_FORMAT_XBGR1555,
-	DRM_FORMAT_BGRX5551,
-	DRM_FORMAT_BGR565,
-	DRM_FORMAT_XRGB8888,
-	DRM_FORMAT_XBGR8888,
 	/* planar formats */
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_YUYV,
@@ -2355,10 +2312,6 @@ static const struct tegra_dc_soc_info tegra186_dc_soc_info = {
 	.has_nvdisplay = true,
 	.wgrps = tegra186_dc_wgrps,
 	.num_wgrps = ARRAY_SIZE(tegra186_dc_wgrps),
-	.num_primary_formats = ARRAY_SIZE(tegra186_primary_formats),
-	.primary_formats = tegra186_primary_formats,
-	.num_overlay_formats = ARRAY_SIZE(tegra186_overlay_formats),
-	.overlay_formats = tegra186_overlay_formats,
 };
 
 static const struct of_device_id tegra_dc_of_match[] = {
