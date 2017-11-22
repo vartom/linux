@@ -29,8 +29,8 @@ gm20b_vmm_17 = {
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.page = {
-		{ 27, &gm200_vmm_desc_17_17[1], NVKM_VMM_PAGE_Sxxx },
-		{ 17, &gm200_vmm_desc_17_17[0], NVKM_VMM_PAGE_SxHC },
+		//{ 27, &gm200_vmm_desc_17_17[1], NVKM_VMM_PAGE_Sxxx },
+		//{ 17, &gm200_vmm_desc_17_17[0], NVKM_VMM_PAGE_SxHC },
 		{ 12, &gm200_vmm_desc_17_12[0], NVKM_VMM_PAGE_SxHx },
 		{}
 	}
@@ -44,8 +44,8 @@ gm20b_vmm_16 = {
 	.valid = gf100_vmm_valid,
 	.flush = gf100_vmm_flush,
 	.page = {
-		{ 27, &gm200_vmm_desc_16_16[1], NVKM_VMM_PAGE_Sxxx },
-		{ 16, &gm200_vmm_desc_16_16[0], NVKM_VMM_PAGE_SxHC },
+		//{ 27, &gm200_vmm_desc_16_16[1], NVKM_VMM_PAGE_Sxxx },
+		//{ 16, &gm200_vmm_desc_16_16[0], NVKM_VMM_PAGE_SxHC },
 		{ 12, &gm200_vmm_desc_16_12[0], NVKM_VMM_PAGE_SxHx },
 		{}
 	}
