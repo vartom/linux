@@ -70,6 +70,7 @@ gf100_vmm_pgt_dma(struct nvkm_vmm *vmm, struct nvkm_mmu_pt *pt,
 		nvkm_kmap(pt->memory);
 		while (ptes--) {
 			const u64 data = (*map->dma++ >> 8) | map->type;
+			//pr_info("  PTE %4u %llx\n", ptei, data);
 			VMM_WO064(pt, vmm, ptei++ * 8, data);
 			map->type += map->ctag;
 		}
@@ -239,6 +240,7 @@ gf100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 		ro   = !!args->v0.ro;
 		priv = !!args->v0.priv;
 		kind =   args->v0.kind;
+		pr_info("unpacked: vol: %d ro: %d priv: %d kind: %02x\n", vol, ro, priv, kind);
 	} else
 	if (!(ret = nvif_unvers(ret, &argv, &argc, args->vn))) {
 		vol  = target == NVKM_MEM_TARGET_HOST;

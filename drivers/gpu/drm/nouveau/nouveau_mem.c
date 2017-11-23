@@ -103,13 +103,19 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 	u8 type;
 	int ret;
 
+	pr_info("> %s(reg=%p, tt=%p)\n", __func__, reg, tt);
+
 	if (mmu->type[drm->ttm.type_host].type & NVIF_MEM_UNCACHED)
 		type = drm->ttm.type_ncoh;
 	else
 		type = drm->ttm.type_host;
 
-	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND))
+	pr_info("  type: %x\n", type);
+
+	if (mem->kind && !(mmu->type[type].type & NVIF_MEM_KIND)) {
+		pr_info("resetting mem->kind (was %02x)\n", mem->kind);
 		mem->comp = mem->kind = 0;
+	}
 	if (mem->comp && !(mmu->type[type].type & NVIF_MEM_COMP)) {
 		if (mmu->object.oclass >= NVIF_CLASS_MMU_GF100)
 			mem->kind = mmu->kind[mem->kind];
@@ -126,6 +132,7 @@ nouveau_mem_host(struct ttm_mem_reg *reg, struct ttm_dma_tt *tt)
 				 &args, sizeof(args), &mem->mem);
 	cli->base.super = super;
 	mutex_unlock(&drm->master.lock);
+	pr_info("< %s() = %d\n", __func__, ret);
 	return ret;
 }
 

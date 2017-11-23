@@ -350,13 +350,19 @@ nvkm_vm_map_sg(struct nvkm_vma *vma, u64 delta, u64 length,
 void
 nvkm_vm_map(struct nvkm_vma *vma, struct nvkm_mem *node)
 {
-	if (node->sg)
+	pr_info("> %s(vma=%p, node=%p)\n", __func__, vma, node);
+	if (node->sg) {
+		pr_info("  mapping SG table...\n");
 		nvkm_vm_map_sg_table(vma, 0, node->size << 12, node);
-	else
-	if (node->pages)
+	} else
+	if (node->pages) {
+		pr_info("  mapping pages...\n");
 		nvkm_vm_map_sg(vma, 0, node->size << 12, node);
-	else
+	} else {
+		pr_info("  mapping...\n");
 		nvkm_vm_map_at(vma, 0, node);
+	}
+	pr_info("< %s()\n", __func__);
 }
 
 void
@@ -474,6 +480,8 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 	u8 type = NVKM_MEM_KIND * !!mmu->func->kind_sys;
 	int heap;
 
+	pr_info("> %s(mmu=%p)\n", __func__, mmu);
+
 	/* Non-mappable system memory. */
 	heap = nvkm_mmu_heap(mmu, NVKM_MEM_HOST, ~0ULL);
 	nvkm_mmu_type(mmu, heap, type);
@@ -485,9 +493,10 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 	 * to map BAR1 with write-combining.
 	 */
 	type |= NVKM_MEM_MAPPABLE;
-	if (!device->bar || device->bar->iomap_uncached)
+	if (!device->bar || !device->bar->iomap_uncached) {
+		pr_info("  BAR1 not available, can't support block-linear mappings\n");
 		nvkm_mmu_type(mmu, heap, type & ~NVKM_MEM_KIND);
-	else
+	} else
 		nvkm_mmu_type(mmu, heap, type);
 
 	/* Coherent, cached, system memory.
@@ -502,6 +511,7 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 
 	/* Uncached system memory. */
 	nvkm_mmu_type(mmu, heap, type |= NVKM_MEM_UNCACHED);
+	pr_info("< %s()\n", __func__);
 }
 
 static void

@@ -249,12 +249,14 @@ nouveau_ttm_init(struct nouveau_drm *drm)
 	if (typei < 0)
 		return -ENOSYS;
 
+	pr_info("HOST: %d\n", typei);
 	drm->ttm.type_host = typei;
 
 	typei = nvif_mmu_type(mmu, NVIF_MEM_HOST | NVIF_MEM_MAPPABLE);
 	if (typei < 0)
 		return -ENOSYS;
 
+	pr_info("NCOH: %d\n", typei);
 	drm->ttm.type_ncoh = typei;
 
 	if (drm->client.device.info.platform != NV_DEVICE_INFO_V0_SOC &&

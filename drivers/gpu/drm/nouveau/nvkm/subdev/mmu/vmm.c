@@ -705,8 +705,10 @@ nvkm_vmm_ptes_map(struct nvkm_vmm *vmm, const struct nvkm_vmm_page *page,
 		  u64 addr, u64 size, struct nvkm_vmm_map *map,
 		  nvkm_vmm_pte_func func)
 {
+	pr_info("> %s(vmm=%p, page=%p, addr=%llx, size=%llu, map=%p, func=%ps)\n", __func__, vmm, page, addr, size, map, func);
 	nvkm_vmm_iter(vmm, page, addr, size, "map", false,
 		      NULL, func, map, NULL);
+	pr_info("< %s()\n", __func__);
 }
 
 static void
