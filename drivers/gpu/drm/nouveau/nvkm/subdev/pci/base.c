@@ -72,10 +72,10 @@ nvkm_pci_intr(int irq, void *arg)
 	struct nvkm_device *device = pci->subdev.device;
 	bool handled = false;
 	nvkm_mc_intr_unarm(device);
-	if (pci->msi)
-		pci->func->msi_rearm(pci);
 	nvkm_mc_intr(device, &handled);
 	nvkm_mc_intr_rearm(device);
+	if (pci->msi)
+		pci->func->msi_rearm(pci);
 	return handled ? IRQ_HANDLED : IRQ_NONE;
 }
 
