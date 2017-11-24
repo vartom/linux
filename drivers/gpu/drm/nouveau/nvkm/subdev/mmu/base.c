@@ -292,7 +292,7 @@ nvkm_mmu_host(struct nvkm_mmu *mmu)
 	 * to map BAR1 with write-combining.
 	 */
 	type |= NVKM_MEM_MAPPABLE;
-	if (!device->bar || device->bar->iomap_uncached)
+	if (!device->bar || !device->bar->iomap_uncached)
 		nvkm_mmu_type(mmu, heap, type & ~NVKM_MEM_KIND);
 	else
 		nvkm_mmu_type(mmu, heap, type);
