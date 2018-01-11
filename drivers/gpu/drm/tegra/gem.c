@@ -340,6 +340,8 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 	struct tegra_bo *bo;
 	int err;
 
+	pr_info("> %s(drm=%p, buf=%p)\n", __func__, drm, buf);
+
 	bo = tegra_bo_alloc_object(drm, buf->size);
 	if (IS_ERR(bo))
 		return bo;
@@ -374,6 +376,7 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 	bo->gem.import_attach = attach;
 	bo->resv = buf->resv;
 
+	pr_info("< %s() = %p\n", __func__, bo);
 	return bo;
 
 detach:
@@ -385,6 +388,7 @@ detach:
 free:
 	drm_gem_object_release(&bo->gem);
 	kfree(bo);
+	pr_info("< %s() = %d\n", __func__, err);
 	return ERR_PTR(err);
 }
 
