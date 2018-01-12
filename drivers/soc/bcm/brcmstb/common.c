@@ -70,19 +70,25 @@ static int __init brcmstb_soc_device_early_init(void)
 {
 	struct device_node *sun_top_ctrl;
 	void __iomem *sun_top_ctrl_base;
+	int err = 0;
 
 	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return -ENODEV;
 
 	sun_top_ctrl_base = of_iomap(sun_top_ctrl, 0);
-	if (!sun_top_ctrl_base)
-		return -ENODEV;
+	if (!sun_top_ctrl_base) {
+		err = -ENODEV;
+		goto put_node;
+	}
 
 	family_id = readl(sun_top_ctrl_base);
 	product_id = readl(sun_top_ctrl_base + 0x4);
 	iounmap(sun_top_ctrl_base);
-	return 0;
+
+put_node:
+	of_node_put(sun_top_ctrl);
+	return err;
 }
 early_initcall(brcmstb_soc_device_early_init);
 
@@ -95,6 +101,8 @@ static int __init brcmstb_soc_device_init(void)
 	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
 		return -ENODEV;
+
+	of_node_put(sun_top_ctrl);
 
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
