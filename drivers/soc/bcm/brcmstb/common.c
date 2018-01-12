@@ -74,7 +74,7 @@ static int __init brcmstb_soc_device_early_init(void)
 
 	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
-		return -ENODEV;
+		return 0;
 
 	sun_top_ctrl_base = of_iomap(sun_top_ctrl, 0);
 	if (!sun_top_ctrl_base) {
@@ -100,7 +100,7 @@ static int __init brcmstb_soc_device_init(void)
 
 	sun_top_ctrl = of_find_matching_node(NULL, sun_top_ctrl_match);
 	if (!sun_top_ctrl)
-		return -ENODEV;
+		return 0;
 
 	of_node_put(sun_top_ctrl);
 
