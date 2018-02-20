@@ -1,0 +1,1 @@
+nice make ARCH=powerpc CROSS_COMPILE=~/pbs-stage1/bin/powerpc64-linux-gnu- O=build/wii -j4
